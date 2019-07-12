@@ -1,0 +1,10 @@
+# using 6BM PVs for testing
+A_shutter:
+  - "6bmb1:rShtrA:"
+  - "PA:06BM:STA_A_FES_OPEN_PL"
+
+tomo_stage:
+  'preci':  "6bmpreci:m1"
+  'samX':   "6bma1:m19"
+  'ksamx':  "6bma1:m11"
+  'samY':   "6bma1:m18"
