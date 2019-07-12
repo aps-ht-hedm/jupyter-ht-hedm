@@ -59,7 +59,7 @@ keywords_func['load_config'] = load_config.__doc__
 
 
 # --- load devices info from yaml file
-_devices = load_config('seis-idd/devices.yml')
+_devices = load_config('seis-idd/config/tomo_devices.yml')
 
 
 # --- exp safeguard suspender
@@ -123,8 +123,8 @@ def get_motors(mode="debug"):
     elif mode.lower() in ['dryrun', 'production']:
         tomostage = MotorBundle(name="tomostage")
         tomostage.preci = sim.motor
-        tomostage.samX = sim.motor
-        tomostage.samY = sim.motor
+        tomostage.samX  = sim.motor
+        tomostage.samY  = sim.motor
     else:
         raise ValueError(f"🙉: invalide mode, {mode}")
     return tomostage
@@ -142,6 +142,65 @@ keywords_vars['samY'] = 'tomo stage y-translation'
 
 
 # --- define psofly control 
+from ophyd import EpicsSignal
+from ophyd import EpicsSignalRO
+from ophyd import Device
+import bluesky.plan_stubs as bps
+
+class TaxiFlyScanDevice(Device):
+    """
+    BlueSky Device for APS taxi & fly scans
+    
+    Some EPICS fly scans at APS are triggered by a pair of 
+    EPICS busy records. The busy record is set, which triggers 
+    the external controls to do the fly scan and then reset 
+    the busy record. 
+    
+    The first busy is called taxi and is responsible for 
+    preparing the hardware to fly. 
+    The second busy performs the actual fly scan. 
+    In a third (optional) phase, data is collected 
+    from hardware and written to a file.
+    """
+    taxi = Component(EpicsSignal, "taxi", put_complete=True)
+    fly = Component(EpicsSignal, "fly", put_complete=True)
+    
+    def plan(self):
+        yield from bps.mv(self.taxi, self.taxi.enum_strs[1])
+        yield from bps.mv(self.fly, self.fly.enum_strs[1])
+
+class EnsemblePSOFlyDevice(TaxiFlyScanDevice):
+    motor_pv_name = Component(EpicsSignalRO, "motorName")
+    start = Component(EpicsSignal, "startPos")
+    end = Component(EpicsSignal, "endPos")
+    slew_speed = Component(EpicsSignal, "slewSpeed")
+
+    # scan_delta: output a trigger pulse when motor moves this increment
+    scan_delta = Component(EpicsSignal, "scanDelta")
+
+    # advanced controls
+    delta_time = Component(EpicsSignalRO, "deltaTime")
+    # detector_setup_time = Component(EpicsSignal, "detSetupTime")
+    # pulse_type = Component(EpicsSignal, "pulseType")
+
+    scan_control = Component(EpicsSignal, "scanControl")
+
+keywords_func['get_fly_motor'] = 'Return a connection to fly IOC control'
+def get_fly_motor(mode='debug'):
+    """
+    sim motor <-- debug
+    fly motor <-- dryrun, production
+    """
+    if mode.lower() == 'debug':
+        psofly = sim.flyer1
+    elif mode.lower() in ['dryrun', 'production']:
+        psofly = EnsemblePSOFlyDevice(_devices['tomo_stage']['psofly'], name="psofly")
+    else:
+        raise ValueError(f"🙉: invalide mode, {mode}")
+    return psofly
+
+psofly = get_fly_motor(mode='debug')
+keywords_vars['psofly'] = 'fly control instance'
 
 
 # --- define detector
