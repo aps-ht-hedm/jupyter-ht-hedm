@@ -8,3 +8,7 @@ tomo_stage:
   'samX':   "6bma1:m19"
   'ksamx':  "6bma1:m11"
   'samY':   "6bma1:m18"
+  'psofly': "6bmpreci:eFly:"
+
+area_detector:
+  'ADPV_prefix': "1idPG2"
