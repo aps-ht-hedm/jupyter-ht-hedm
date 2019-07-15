@@ -61,7 +61,21 @@ def step_scan(det, tomostage, cfg_tomo):
     """
     Collect projects with step motion
     """
-    pass
+    yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+    yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+    yield from bps.mv(det.proc1.enable, 1)
+    yield from bps.mv(det.proc1.reset_filter, 1)
+    yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+
+    angs = np.arange(
+        cfg_tomo['omega_start'], 
+        cfg_tomo['omega_end']+cfg_tomo['omega_step']/2,
+        cfg_tomo['omega_step'],
+    )
+    for ang in angs:
+        yield from bps.checkpoint()
+        yield from bps.mv(tomostage.preci, ang)
+        yield from bps.trigger_and_read([det])
 
 
 @bpp.run_decorator()
@@ -69,7 +83,28 @@ def fly_scan(det, tomostage, cfg_tomo):
     """
     Collect projections with fly motion
     """
-    pass
+    yield from bps.mv(det.hdf1.nd_array_port, 'PG1')
+    yield from bps.mv(det.tiff1.nd_array_port, 'PG1')
+
+    # we are assuming that the global psofly is available
+    yield from bps.mv(
+        psofly.start,           cfg_tomo['omega_start'],
+        psofly.end,             cfg_tomo['omega_end'],
+        psofly.scan_delta,      cfg_tomo['omega_step'],
+        psofly.slew_speed,      cfg_tomo['slew_speed'],
+    )
+    # taxi
+    yield from bps.mv(psofly.taxi, "Taxi")
+    # ???
+    yield from bps.mv(
+        det.cam.num_images, cfg_tomo['n_projections'],
+        det.cam.trigger_mode, "Overlapped",
+    )
+    # start the fly scan
+    yield from bps.trigger(det, group='fly')
+    yield from bps.abs_set(psofly.fly, "Fly", group='fly')
+    yield from bps.wait(group='fly')
+
 
 
 def tomo_scan(det, tomostage, shutter, shutter_suspender, cfg):
@@ -94,10 +129,11 @@ def tomo_scan(det, tomostage, shutter, shutter_suspender, cfg):
         cfg['tomo']['omega_step'],
     )
     n_projections = len(angs)
+    cfg['tomo']['n_projections'] = n_projections
     total_images  = n_white + n_projections + n_white + n_dark
     fp = cfg['output']['filepath']
     fn = cfg['output']['fileprefix']
-
+    
     # calculate slew speed for fly scan
     # https://github.com/decarlof/tomo2bm/blob/master/flir/libs/aps2bm_lib.py
     # TODO: considering blue pixels, use 2BM code as ref
