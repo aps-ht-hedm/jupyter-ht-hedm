@@ -291,3 +291,80 @@ def get_detector(
 det = get_detector(mode='debug')
 keywords_vars['det'] = 'Area detector instance'
 
+
+# --- add the overall control function to initialize all devices
+# NOTE:
+#    6-ID-D might not have the following two PVs, or most likely use something
+#    equivalent, but different in implementation
+keywords_func['instrument_in_use'] = 'instrument status, manual set on IOC'
+def instrument_in_use():
+    """check if the soft IOC for 6BM-A"""
+    from ophyd import EpicsSignalRO
+    tmp = EpicsSignalRO("6bm:instrument_in_use", name="tmp")
+    try:
+        state = tmp.get()
+    except TimeoutError:
+        state = False
+        print("🙈: cannot find this soft IOC PV, please check the settings.")
+    finally:
+        print(f"🙈: the instrument is {'' if state else 'not'} in use.")
+        return state
+
+keywords_func['hutch_light_on'] = 'Hutch lighting status'
+def hutch_light_on():
+    """check PV for hutch lighting"""
+    calcs = apstools.synApps_ophyd.userCalcsDevice("6bma1:", name="calcs")
+    try:
+        state = bool(calcs.calc1.val.get())
+    except TimeoutError:
+        state = None
+        print("🙈: cannot find this soft IOC PV, please check the settings.")
+    finally:
+        print(f"🙈: the hutch is {'' if state else 'not'} on.")
+    return state
+
+keywords_func['init_tomo'] = '(Re)-initialized all devices with given mode'
+def init_tomo(mode='debug', config=None):
+    """
+    (Re)-initialize all devices based on given mode
+        simulated devices <-- debug
+        actual devices    <-- dryrun, production
+    """
+    global A_shutter
+    global suspend_A_shutter
+    global tomostage
+    global preci, samX, ksamx, samY 
+    global psofly
+    global det
+
+    # re-init all tomo related devices
+    A_shutter = get_shutter(mode=mode)
+    tomostage = get_motors(mode=mode) 
+    preci = tomostage.preci              
+    samX = tomostage.samX               
+    ksamx = tomostage.ksamx    
+    samY = tomostage.samY               
+    psofly = get_fly_motor(mode=mode)
+    det = get_detector(mode=mode)
+
+    # some quick sanity check production mode
+    import apstools.devices as APS_devices
+    aps = APS_devices.ApsMachineParametersDevice(name="APS")
+    if mode.lower() == 'production':
+        if aps.inUserOperations and (instrument_in_use() in (1, "6-BM-A")) and (not hutch_light_on()):
+            suspend_A_shutter = SuspendFloor(A_shutter.pss_state, 1)
+            RE.install_suspender(suspend_A_shutter)
+        else:
+            raise ValueError("Cannot be in production mode!")
+    else:
+        pass
+
+    # TODO:
+    # initialize all values in the dictionary
+
+print(f"""
+🙊: Use init_tomo() to toggle between
+    debug :     development mode, no hardware connection
+    dryrun:     testing mode, connect to hardware, no beam
+    production: ready for experiment
+""")
