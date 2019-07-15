@@ -291,5 +291,3 @@ def get_detector(
 det = get_detector(mode='debug')
 keywords_vars['det'] = 'Area detector instance'
 
-print(f'leaving {__file__}...\n')
-
