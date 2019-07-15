@@ -12,3 +12,6 @@ tomo_stage:
 
 area_detector:
   'ADPV_prefix': "1idPG2"
+  'cam_layout': "seis-idd/config/PG2_attributes.xml"
+  'hdf_layout': "seis-idd/config/tomo6bma_layout.xml"
+
