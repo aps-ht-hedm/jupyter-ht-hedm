@@ -59,7 +59,7 @@ keywords_func['load_config'] = load_config.__doc__
 
 
 # --- load devices info from yaml file
-_devices = load_config('seis-idd/config/tomo_devices.yml')
+_devices = load_config('seis_idd/config/tomo_devices.yml')
 
 
 # --- exp safeguard suspender
