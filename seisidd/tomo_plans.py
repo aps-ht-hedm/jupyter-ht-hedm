@@ -83,6 +83,8 @@ def fly_scan(det, tomostage, cfg_tomo):
     """
     Collect projections with fly motion
     """
+    psofly = tomostage.psofly
+    
     yield from bps.mv(det.hdf1.nd_array_port, 'PG1')
     yield from bps.mv(det.tiff1.nd_array_port, 'PG1')
 
@@ -105,19 +107,19 @@ def fly_scan(det, tomostage, cfg_tomo):
     yield from bps.wait(group='fly')
 
 
-
-def tomo_scan(det, tomostage, shutter, shutter_suspender, cfg):
+def tomo_scan(det, tomostage, shutter, shutter_suspender, cfg, init_motors_pos):
     """
     Tomography scan plan based on given configuration
     """
+    
     cfg = load_config(cfg) if type(cfg) != dict else cfg
 
     # update the cached motor position in the dict in case exp goes wrong
-    init_motors_pos['samX' ] = samX.position
-    init_motors_pos['samY' ] = samY.position
-    init_motors_pos['ksamX'] = ksamX.position
-    init_motors_pos['ksamZ'] = ksamZ.position
-    init_motors_pos['preci'] = preci.position
+    init_motors_pos['samX' ] = tomostage.samX.position
+    init_motors_pos['samY' ] = tomostage.samY.position
+    init_motors_pos['ksamX'] = tomostage.ksamX.position
+    init_motors_pos['ksamZ'] = tomostage.ksamZ.position
+    init_motors_pos['preci'] = tomostage.preci.position
 
     # step 0: preparation
     acquire_time   = cfg['tomo']['acquire_time']
@@ -127,20 +129,22 @@ def tomo_scan(det, tomostage, shutter, shutter_suspender, cfg):
     n_dark         = cfg['tomo']['n_dark']
     angs = np.arange(
         cfg['tomo']['omega_start'], 
-        cfg['tomo']['omega_end']+config['tomo']['omega_step']/2,
+        cfg['tomo']['omega_end']+cfg['tomo']['omega_step']/2,
         cfg['tomo']['omega_step'],
     )
     n_projections = len(angs)
+    cfg['tomo']['n_projections'] = n_projections
     total_images  = n_white + n_projections + n_white + n_dark
-    fp = config['output']['filepath']
-    fn = config['output']['fileprefix']
+    fp = cfg['output']['filepath']
+    fn = cfg['output']['fileprefix']
     
     # calculate slew speed for fly scan
     # https://github.com/decarlof/tomo2bm/blob/master/flir/libs/aps2bm_lib.py
     # TODO: considering blue pixels, use 2BM code as ref
     if cfg['tomo']['type'].lower() == 'fly':
-        scan_time = (acquire_time+config['tomo']['readout_time'])*n_projections
+        scan_time = (acquire_time+cfg['tomo']['readout_time'])*n_projections
         slew_speed = (angs.max() - angs.min())/scan_time
+        cfg['tomo']['slew_speed'] = slew_speed
     
     # need to make sure that the sample out position is the same for both front and back
     x0, z0 = tomostage.ksamX.position, tomostage.ksamZ.position
@@ -149,11 +153,11 @@ def tomo_scan(det, tomostage, shutter, shutter_suspender, cfg):
     rotm = np.array([[ np.cos(rotang), np.sin(rotang)],
                      [-np.sin(rotang), np.cos(rotang)]])
     dbxz = np.dot(rotm, np.array([dfx, dfz]))
-    dbx = dbxz[0] if abs(dbxz) > 1e-8 else 0.0
-    dbz = dbxz[1] if abs(dbxz) > 1e-8 else 0.0
+    dbx = dbxz[0] if abs(dbxz[0]) > 1e-8 else 0.0
+    dbz = dbxz[1] if abs(dbxz[1]) > 1e-8 else 0.0
     # now put the value to dict
     cfg['tomo']['initial_ksamX'] = x0
-    cfg['tomo']['initial_ksamZ'] = y0
+    cfg['tomo']['initial_ksamZ'] = z0
     cfg['tomo']['fronte_white_ksamX'] = x0 + dfx
     cfg['tomo']['fronte_white_ksamZ'] = z0 + dfz
     cfg['tomo']['back_white_ksamX'] = x0 + dbx
@@ -175,11 +179,11 @@ def tomo_scan(det, tomostage, shutter, shutter_suspender, cfg):
             yield from bps.mv(me.num_capture, total_images)
             yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
 
-        if config['output']['type'] in ['tif', 'tiff']:
+        if cfg['output']['type'] in ['tif', 'tiff']:
             yield from bps.mv(det.tiff1.enable, 1)
             yield from bps.mv(det.tiff1.capture, 1)
             yield from bps.mv(det.hdf1.enable, 0)
-        elif config['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
+        elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
             yield from bps.mv(det.tiff1.enable, 0)
             yield from bps.mv(det.hdf1.enable, 1)
             yield from bps.mv(det.hdf1.capture, 1)

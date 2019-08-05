@@ -16,7 +16,8 @@ from datetime import datetime
 # --- keywords tracking
 keywords_vars = {}  # {name: short description}
 keywords_func = {}  # {name: short descciption}
-from utility import print_dict
+
+from seisidd.utility import print_dict
 list_predefined_vars = lambda : print_dict(keywords_vars)
 list_predefined_func = lambda : print_dict(keywords_func)
 
@@ -107,7 +108,7 @@ from ophyd import sim
 
 class TomoStage(MotorBundle):
     #rotation
-    preci = Component(EpicsMotor, _devices['tomo_stage']['preci'], name='preci')    
+    preci = Component(EpicsMotor, _devices['tomo_stage']['preci'], name='preci')       
     samX  = Component(EpicsMotor, _devices['tomo_stage']['samX' ], name='samX' )
     ksamX = Component(EpicsMotor, _devices['tomo_stage']['ksamX'], name='ksamX')
     ksamZ = Component(EpicsMotor, _devices['tomo_stage']['ksamZ'], name='ksamZ')
@@ -127,7 +128,7 @@ def get_motors(mode="debug"):
         tomostage.preci = sim.motor
         tomostage.samX  = sim.motor
         tomostage.ksamX = sim.motor
-        tomostage.ksamz = sim.motor
+        tomostage.ksamZ = sim.motor
         tomostage.samY  = sim.motor
     else:
         raise ValueError(f"🙉: invalide mode, {mode}")
@@ -206,6 +207,7 @@ def get_fly_motor(mode='debug'):
     return psofly
 
 psofly = get_fly_motor(mode='debug')
+tomostage.psofly = psofly
 keywords_vars['psofly'] = 'fly control instance'
 
 
@@ -283,10 +285,10 @@ def get_detector(
         # set the layout file for cam
         # NOTE: use the __file__ as anchor should resolve the directory issue.
         _current_fp = str(Path(__file__).parent.absolute())
-        _attrib_fp = os.path.join(_current_fp, '../../../configs/PG2_attributes.xml')
+        _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
         det.cam.nd_attributes_file.put(_attrib_fp)
         # set attributes for HDF5 plugin
-        _layout_fp = os.path.join(_current_fp, '../../../configs/tomo6bma_layout.xml')
+        _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
         det.hdf1.xml_file_name.put(_layout_fp)
         # turn off the problematic auto setting in cam
         det.cam.auto_exposure_auto_mode.put(0)  
@@ -311,7 +313,7 @@ class RuntimeMode():
     def __repr__(self):
         return f"Current runtime mode is set to: {self._mode} ['debug', 'dryrun', 'production']"
 
-    def set(self, mode='debug', config=None):
+    def set(self, mode, config=None):
         """
         (Re)-initialize all devices based on given mode
         simulated devices <-- debug
@@ -330,15 +332,15 @@ class RuntimeMode():
         global det
 
         # re-init all tomo related devices
-        A_shutter = get_shutter(mode=mode)
-        tomostage = get_motors(mode=mode) 
+        A_shutter = get_shutter(self._mode)
+        tomostage = get_motors(self._mode) 
         preci     = tomostage.preci              
         samX      = tomostage.samX               
         ksamX     = tomostage.ksamX
         ksamZ     = tomostage.ksamZ        
         samY      = tomostage.samY               
-        psofly    = get_fly_motor(mode=mode)
-        det       = get_detector(mode=mode)
+        psofly    = get_fly_motor(self._mode)
+        det       = get_detector(self._mode)
 
         # some quick sanity check production mode
         import apstools.devices as APS_devices

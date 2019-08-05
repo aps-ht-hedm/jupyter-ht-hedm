@@ -39,7 +39,6 @@ def print_dict(input_dict):
             }, headers="keys"))
 
 
-keywords_func['repeat_exp'] = 'repeat given experiment n times'
 def repeat_exp(plan_func, n=1):
     """
     Quick wrapper to repeat certain experiment, e.g.
