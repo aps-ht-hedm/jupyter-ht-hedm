@@ -14,10 +14,11 @@ import databroker
 
 from   bluesky.callbacks.best_effort import BestEffortCallback
 from   bluesky.suspenders            import SuspendFloor
-from   .motors                        import TomoStage
-from   .motors                        import EnsemblePSOFlyDevice
-from   .detectors                     import PointGreyDetector6IDD
-
+from   bluesky.simulators            import summarize_plan
+from   .motors                       import TomoStage
+from   .motors                       import EnsemblePSOFlyDevice
+from   .detectors                    import PointGreyDetector6IDD
+from   .tomo_plans                   import tomo_scan
 
 class Experiment:
     """
@@ -236,6 +237,14 @@ class Tomography(Experiment):
         else:
             raise ValueError(f"Invalide mode, {mode}")
         return det
+
+    def dryrun(self, tomo_config):
+        """use summarize_plan for quick analysis"""
+        return summarize_plan(tomo_scan(self, tomo_config))
+
+    def run(self, tomo_config):
+        """run the tomography experiment"""
+        return self.RE(tomo_scan(self, tomo_config))
 
 
 if __name__ == "__main__":
