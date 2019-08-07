@@ -77,6 +77,7 @@ if __name__ == "__main__":
     # NOTE: use the __file__ as anchor should resolve the directory issue.
     _current_fp = str(Path(__file__).parent.absolute())
     _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+    '''
     det.cam.nd_attributes_file.put(_attrib_fp)
     # set attributes for HDF5 plugin
     _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
@@ -86,3 +87,4 @@ if __name__ == "__main__":
     det.cam.sharpness_auto_mode.put(0)
     det.cam.gain_auto_mode.put(0)
     det.cam.frame_rate_auto_mode.put(0)
+    '''
