@@ -1,0 +1,19 @@
+# using 6BM PVs for testing
+A_shutter:
+  - "6bmb1:rShtrA:"
+  - "PA:06BM:STA_A_FES_OPEN_PL"
+
+tomo_stage:
+  'preci':  "6bmpreci:m1"
+  'samX':   "6bma1:m19"
+  'ksamX':  "6bma1:m11"
+  'ksamZ':  "6bma1:m12"
+  'samY':   "6bma1:m18"
+  'psofly': "6bmpreci:eFly:"
+  
+
+area_detector:
+  'ADPV_prefix': "1idPG2"
+  'cam_layout': "seis-idd/config/PG2_attributes.xml"
+  'hdf_layout': "seis-idd/config/tomo6bma_layout.xml"
+
