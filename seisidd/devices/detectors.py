@@ -16,8 +16,6 @@ from ophyd   import ProcessPlugin
 from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
 
-from tabulate  import tabulate
-
 
 class RetigaDetectorCam(CamBase):
     """Retiga camera """
