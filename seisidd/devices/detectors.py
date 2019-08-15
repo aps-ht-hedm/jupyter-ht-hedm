@@ -11,7 +11,7 @@ NOTE:
 from ophyd   import AreaDetector
 from ophyd   import SingleTrigger, EpicsSignalWithRBV
 from ophyd   import ADComponent
-from ophyd   import CamBase
+from ophyd   import CamBase, DexelaDetectorCam
 from ophyd   import ProcessPlugin
 from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
@@ -24,6 +24,13 @@ class RetigaDetectorCam(CamBase):
     # configuration, see 
     #  https://github.com/bluesky/ophyd/blob/master/ophyd/areadetector/cam.py
     # for more examples on how to make the Retiga cam
+    pass
+
+
+class DexelaDetectorCam6IDD(DexelaDetectorCam):
+    """Dexela detector camera module"""
+    # TODO:
+    #   Missing features from the default settings need to be added here
     pass
 
 
@@ -66,6 +73,42 @@ class RetigaDetector(SingleTrigger, AreaDetector):
     # TODO:
     #  Additional PVs can be wrapped as property for interactive use when the 
     #  acutal PVs are known.
+
+
+class DexelaDetector(SingleTrigger, AreaDetector):
+    """Dexela detector used at 6-ID-D@APS for ff-HEDM"""
+
+    cam   = ADComponent(DexelaDetectorCam6IDD, suffix="cam1:" )  # camera
+    proc1 = ADComponent(ProcessPlugin,         suffix="Proc1:")  # processing
+    tiff1 = ADComponent(TIFFPlugin,            suffix="TIFF1:")  # tiff output
+    hdf1  = ADComponent(HDF5Plugin6IDD,        suffix="HDF1:" )  # HDF5 output
+
+    @property
+    def status(self):
+        """List all related PVs and corresponding values"""
+        # TODO:
+        #   provide acutal implementation here
+        return "Not implemented yet"
+
+    @property
+    def help(self):
+        """Return quick summary of the actual specs of the detector"""
+
+    @property
+    def position(self):
+        """return the area detector position from the associated motor"""
+        pass
+
+    @position.setter
+    def position(self, new_pos):
+        """move the detector to the new location"""
+        # NOTE:
+        #   This is for interactive control only, cannot be used in scan plan
+        pass
+
+    # TODO:
+    #  Additional PVs can be wrapped as property for interactive use when the 
+    #  acutal PVs are known.    
 
 
 if __name__ == "__main__":
