@@ -18,7 +18,7 @@ class Slits(MotorBundle):
     bottom = Component(EpicsMotor, "PV_bottom", name='bottom')
 
 
-class Attenuator:
+class Attenuator(MotorBundle):
     """Attenuator control"""
     # TODO:
     #   Lack of sufficient information to implement

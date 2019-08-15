@@ -57,6 +57,7 @@ class RetigaDetector(SingleTrigger, AreaDetector):
     @property
     def help(self):
         """Return quick summary of the actual specs of the detector"""
+        pass
 
     @property
     def position(self):
