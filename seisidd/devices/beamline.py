@@ -56,5 +56,13 @@ class Counter:
     pass
 
 
+class FastShutter:
+    """Fast shutter for taking dark field images"""
+    # NOTE:
+    #  apstoos provides shutter class for the main/slow beamline shutter,
+    #  which can be used as a reference when defining the fast shutter
+    pass
+
+
 if __name__ == "__main__":
     pass
