@@ -28,13 +28,16 @@ class StageAero(MotorBundle):
         ===============================
         | coarse translation: x, y, z |
         -------------------------------
-
     TODO:
-        update with acutal PV
+        We may have Kouzu stages for tilt, need to check this.
+
     """
-    kx_trans = Component(EpicsMotor, "$TRKX_PV", name='kx_trans')  # x motion with kozu stage
-    ky_trans = Component(EpicsMotor, "$TRKY_PV", name='ky_trans')  # y motion with kozu stage
-    kz_trans = Component(EpicsMotor, "$TRKZ_PV", name='kz_trans')  # z motion with kozu stage
+
+    #   TODO:
+    #   update with acutal PV
+    kx_trans = Component(EpicsMotor, "$TRKX_PV", name='kx_trans')  # x motion with kohzu stage
+    ky_trans = Component(EpicsMotor, "$TRKY_PV", name='ky_trans')  # y motion with kohzu stage
+    kz_trans = Component(EpicsMotor, "$TRKZ_PV", name='kz_trans')  # z motion with kohzu stage
 
     rot_y    = Component(EpicsMotor, "$ROT_PV", name='rot_y'  )  # rotation with aero stage
     x_trans  = Component(EpicsMotor, "$TRX_PV", name='x_trans')  # x motion with aero stage
@@ -45,11 +48,18 @@ class StageAero(MotorBundle):
     def status(self):
         """return full pv list and corresponding values"""
         # TODO:
-        #   once acutal PVs are known, the implementation should goes here
+        #   once acutal PVs are known, the implementation should go here
+        #   my thought is to list useful PV status for users,
+        #   a full list should be implemented in the Ultima for dev     /JasonZ
         pass
 
     def cache_position(self):
         """quickly cache all motor positions"""
+        #   Add other motors if any (i.e. Kohzu tilt)
+        # TODO:
+        #   We need to consider what to do when cached positions are not the same
+        #   as the physical positions when a motor is manually moved
+        #   calibrate in medm?      /JasonZ
         self.position_cached = {
             "kx_trans": self.kx_trans.position,
             "ky_trans": self.ky_trans.position,
@@ -62,6 +72,7 @@ class StageAero(MotorBundle):
 
     def resume_position(self):
         """move motors to previously cached position"""
+        #   Add other motors if any (i.e. Kohzu tilt)
         self.kx_trans.mv(self.position_cached['kx_trans'])
         self.ky_trans.mv(self.position_cached['ky_trans'])
         self.kz_trans.mv(self.position_cached['kz_trans'])

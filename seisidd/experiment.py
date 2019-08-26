@@ -108,6 +108,8 @@ class Tomography(Experiment):
         # TODO:
         #  Still not clear how calibration can be done automatically, but
         #  let's keep a function here as a place holder
+        #  Check out this auto alignment to see if some functions can be used here
+        #  https://github.com/AdvancedPhotonSource/auto_sample_alignment.git
         pass
         
     @staticmethod
@@ -195,7 +197,7 @@ class Tomography(Experiment):
         # the details and fields need to be updated for 6-ID-D
         _x = cfg_tomo['fronte_white_ksamX'] if atfront else cfg_tomo['back_white_ksamX']
         _z = cfg_tomo['fronte_white_ksamZ'] if atfront else cfg_tomo['back_white_ksamZ']
-        yield from bps.mv(tomostage.ksamX, _x)
+        yield from bps.mv(tomostage.ksamX, _x)  #update with correct motor name
         yield from bps.mv(tomostage.ksamZ, _z)
     
         # setup detector
@@ -214,8 +216,11 @@ class Tomography(Experiment):
         # move sample back to FOV
         # NOTE:
         # not sure is this will work or not...
+        # why are we moving samX with ksamX value???  /JasonZ
+        # TODO:
+        #   need to update all the motor names according to StageAero
         yield from bps.mv(tomostage.samX, cfg_tomo['initial_ksamX'])
-        yield from bps.mv(tomostage.samY, cfg_tomo['initial_ksamZ'])
+        yield from bps.mv(tomostage.samZ, cfg_tomo['initial_ksamZ'])
     
     @bpp.run_decorator()
     def collect_dark_field(self, cfg_tomo):
@@ -237,7 +242,7 @@ class Tomography(Experiment):
     @bpp.run_decorator()
     def step_scan(self, cfg_tomo):
         """
-        Collect projects with step motion
+        Collect projections with step motion
         """
         # unpack devices
         det = self.tomo_det
@@ -250,7 +255,7 @@ class Tomography(Experiment):
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.reset_filter, 1)
         yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
-    
+   
         angs = np.arange(
             cfg_tomo['omega_start'], 
             cfg_tomo['omega_end']+cfg_tomo['omega_step']/2,
@@ -401,6 +406,11 @@ class Tomography(Experiment):
             yield from self.collect_dark_field(cfg['tomo'])
     
         return (yield from scan_closure())
+    
+    #   summarize_plan with config yml file
+    def dryrun(self, scan_config):
+        """use summarize_plan for quick analysis"""
+        return summarize_plan(tomo_scan(self, scan_config))
 
 
 class NearField(Experiment):
