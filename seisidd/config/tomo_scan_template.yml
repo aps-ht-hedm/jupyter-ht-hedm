@@ -1,10 +1,17 @@
 # NOTE:
 # This is a yaml based scan configuration file that can be directly pass
-# to the tomo_step() function
+# to the tomo_scan() function
 # i.e.
 # RE(tomo_step(SCAN_CONFIG.YML))
 
+# let's discuss if we use seperate yml files for tomo, NF, FF or we include them all in one.
+
+
+
 tomo:
+  energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
+  attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
+  FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
   type:    fly           # [step|fly]
   n_white: 5             # num of white field before and after tomo
   n_dark:  5             # num of dark field images after tomo
@@ -22,7 +29,28 @@ tomo:
   accl:                       3   # second,
   readout_time:  0.001    # detector readout time
 
-output:        
+NF:
+  energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
+  attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
+  FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
+  type:    fly           # [step|fly]
+  n_white: 5             # num of white field before and after tomo
+  n_dark:  5             # num of dark field images after tomo
+  sample_out_position:    # !!relative to the current position!!
+    samX:  -1             # mm (relative position to initial position)
+    samZ:   0             # mm (relative position to initial position)
+  acquire_time:   0.10    # sec
+  acquire_period: 0.11    # sec, acquire_time+0.01, (not being used in fly)
+  omega_step:     0.2     # degree
+  omega_start:    0.0    # degree
+  omega_end:     10.0    # degree
+  n_frames:       1       # 5 frames -> 1 images
+  # below are for fly_scan only
+  ROT_STAGE_FAST_SPEED:       1   # degree/second,
+  accl:                       3   # second,
+  readout_time:  0.001    # detector readout time
+
+output:  # we should include the output in each experiment (i.e. tomo, NF, FF)       
 #  filepath:    '/home/beams/S6BM/user_data/2019-2/startup_jun19/tomo/'    # use testing location
   filepath:    '/dev/shm/tmp/'    # use testing location
   fileprefix:  'ttt'       # specify file name

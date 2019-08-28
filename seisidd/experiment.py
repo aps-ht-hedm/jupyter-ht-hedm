@@ -43,6 +43,17 @@ class Experiment:
 
         # TODO:
         # create fast shutter here
+        # for 1id the fast shutter PV is 
+        # FS1PV: 1id:softGlue:AND-1_IN1_Signal
+        # FS2PV: 1id:softGlue:AND-2_IN1_Signal
+        # There are also mask PVs to enable and disable FS control with different signals
+        # FS1maskPV: 1id:softGlue:AND-1_IN2_Signal
+        # FS2maskPV: 1id:softGlue:AND-2_IN2_Signal
+        # The mask PV is used to trigger the FS with other hardware triggers
+        # mostly along with the detector, so that beam is off when not acquiring
+        # i.e. control with sweep: epics_put(sprintf("%s",FS_control_PV), "Sweep", SGtime)
+        # still not entirely sure how this works, maybe bluesky already has this trigger mode?
+
 
         # monitor APS current
         self.suspend_APS_current = SuspendFloor(self._aps.current, 2, resume_thresh=10)
