@@ -6,6 +6,7 @@ This module contains detectors customized for APS-MPE group.
 NOTE:
 * Retiga area detector is not readily available in Ophyd
 * Retiga area detector camera needs to be either setup here or PR to ophyd 
+* Changed to PointGrey Detectors in this example
 """
 
 from ophyd   import AreaDetector
@@ -17,13 +18,13 @@ from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
 
 
-class RetigaDetectorCam(CamBase):
-    """Retiga camera """
+class PointGreyDetectorCam(CamBase):
+    """PointGrey camera """
     # NOTE:
     # Different camera module from different manufacture requires different
     # configuration, see 
     #  https://github.com/bluesky/ophyd/blob/master/ophyd/areadetector/cam.py
-    # for more examples on how to make the Retiga cam
+    # for more examples on how to make the PointGrey cam
     pass
 
 
@@ -39,10 +40,10 @@ class HDF5Plugin6IDD(HDF5Plugin):
     xml_file_name = ADComponent(EpicsSignalWithRBV, "XMLFileName")
         
 
-class RetigaDetector(SingleTrigger, AreaDetector):
-    """Retiga Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
+class PointGreyDetector(SingleTrigger, AreaDetector):
+    """PointGrey Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
 
-    cam   = ADComponent(RetigaDetectorCam, suffix="cam1:" )  # camera
+    cam   = ADComponent(PointGreyDetectorCam, suffix="cam1:" )  # camera
     proc1 = ADComponent(ProcessPlugin,     suffix="Proc1:")  # processing
     tiff1 = ADComponent(TIFFPlugin,        suffix="TIFF1:")  # tiff output
     hdf1  = ADComponent(HDF5Plugin6IDD,    suffix="HDF1:" )  # HDF5 output
@@ -113,8 +114,8 @@ class DexelaDetector(SingleTrigger, AreaDetector):
 
 
 if __name__ == "__main__":
-    # example on how to make an instance of Retiga detector
-    det = RetigaDetector("TBD_PV", name='det')
+    # example on how to make an instance of the PointGrey detector
+    det = PointGreyDetector("TBD_PV", name='det')
 
     # additional setup might be necessary to use the dxchange format for
     # HDF5 output, see 
