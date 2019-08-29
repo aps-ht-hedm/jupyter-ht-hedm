@@ -346,6 +346,11 @@ class Tomography(Experiment):
         total_images  = n_white + n_projections + n_white + n_dark
         fp = cfg['output']['filepath']
         fn = cfg['output']['fileprefix']
+
+        # consider adding an extra step to:
+        #   Perform energy calibration, set intended attenuation
+        #   set the lenses, change the intended slit size
+        #   prime the control of FS
         
         # calculate slew speed for fly scan
         # https://github.com/decarlof/tomo2bm/blob/master/flir/libs/aps2bm_lib.py
