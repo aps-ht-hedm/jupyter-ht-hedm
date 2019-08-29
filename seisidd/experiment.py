@@ -75,8 +75,8 @@ class Experiment:
         elif mode.lower() == 'production':
             from apstools.devices import ApsPssShutterWithStatus
             A_shutter = ApsPssShutterWithStatus(
-                "ACTUAL_PV",
-                "ACTUAL_PV:STA_A_FES_OPEN_PL",
+                "PA:01ID",                          # This is for 1ID
+                "PA:01ID:STA_A_FES_OPEN_PL",        # This is for 1ID
                 name="A_shutter",
             )
         else:
@@ -121,6 +121,12 @@ class Tomography(Experiment):
         #  let's keep a function here as a place holder
         #  Check out this auto alignment to see if some functions can be used here
         #  https://github.com/AdvancedPhotonSource/auto_sample_alignment.git
+        #  Per conversation with Peter, This package can return the same location on the pin
+        #  according to the images.  However, they are requesting more features like determine 
+        #  the slit position and size.
+        #  Jun and Peter will test this code during the first of October, let wait for their feedback.
+
+
         pass
         
     @staticmethod
