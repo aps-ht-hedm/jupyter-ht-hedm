@@ -25,6 +25,20 @@ class PointGreyDetectorCam(CamBase):
     # configuration, see 
     #  https://github.com/bluesky/ophyd/blob/master/ophyd/areadetector/cam.py
     # for more examples on how to make the PointGrey cam
+    
+    # Here I'm copying the 6BM script
+    auto_exposure_on_off    = ADComponent(EpicsSignalWithRBV, "AutoExposureOnOff")
+    auto_exposure_auto_mode = ADComponent(EpicsSignalWithRBV, "AutoExposureAutoMode")
+    sharpness_on_off        = ADComponent(EpicsSignalWithRBV, "SharpnessOnOff")
+    sharpness_auto_mode     = ADComponent(EpicsSignalWithRBV, "SharpnessAutoMode")
+    gamma_on_off            = ADComponent(EpicsSignalWithRBV, "GammaOnOff")
+    shutter_auto_mode       = ADComponent(EpicsSignalWithRBV, "ShutterAutoMode")
+    gain_auto_mode          = ADComponent(EpicsSignalWithRBV, "GainAutoMode")
+    trigger_mode_on_off     = ADComponent(EpicsSignalWithRBV, "TriggerModeOnOff")
+    trigger_mode_auto_mode  = ADComponent(EpicsSignalWithRBV, "TriggerModeAutoMode")
+    trigger_delay_on_off    = ADComponent(EpicsSignalWithRBV, "TriggerDelayOnOff")
+    frame_rate_on_off       = ADComponent(EpicsSignalWithRBV, "FrameRateOnOff")
+    frame_rate_auto_mode    = ADComponent(EpicsSignalWithRBV, "FrameRateAutoMode")
     pass
 
 
