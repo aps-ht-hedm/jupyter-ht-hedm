@@ -51,6 +51,7 @@ class StageAero(MotorBundle):
         #   once acutal PVs are known, the implementation should go here
         #   my thought is to list useful PV status for users,
         #   a full list should be implemented in the Ultima for dev     /JasonZ
+        #   Maybe print StateAero.position_cached ?
         pass
 
     def cache_position(self):
