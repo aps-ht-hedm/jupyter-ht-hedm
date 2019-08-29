@@ -36,10 +36,12 @@ class FocusLenses(MotorBundle):
     """Lens that focuses the beam"""
     # TODO: 
     # Need to figure out the actual set up and motor PVs
-    lens1   = Component(EpicsMotor, "PV_lens1",   name='lens1'  )
-    lens2   = Component(EpicsMotor, "PV_lens2",   name='lens2'  )
-    lens3   = Component(EpicsMotor, "PV_lens3",   name='lens3'  )
-    lens4   = Component(EpicsMotor, "PV_lens4",   name='lens4'  )
+    # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
+    # Let's discuss how to do this...
+    lens1 = Component(EpicsMotor, "PV_lens1",   name='lens1'  )
+    lens2 = Component(EpicsMotor, "PV_lens2",   name='lens2'  )
+    lens3 = Component(EpicsMotor, "PV_lens3",   name='lens3'  )
+    lens4 = Component(EpicsMotor, "PV_lens4",   name='lens4'  )
 
 class Attenuator(MotorBundle):
     """Attenuator control"""
@@ -47,6 +49,43 @@ class Attenuator(MotorBundle):
     #   Lack of sufficient information to implement
     #   * set_atten() ?? 
     #   The attenuators are Cu foils on a wheel.
+    #   Here are the PVs for 1-ID:
+    #       epics_put("1id:9440:1:bo_0.VAL", $1, 1)
+    #       epics_put("1id:9440:1:bo_1.VAL", $2, 1)
+    #       epics_put("1id:9440:1:bo_2.VAL", $3, 1)
+    #       epics_put("1id:9440:1:bo_4.VAL", $4, 1)
+    #   Per conversation with Peter, this is legacy control from 5 or more years ago
+    #   The new set up will have the attenuators on the wheel similar to the Energy foil
+    #   we might have something like:   
+    #   def atten(self, att_level):
+    #       att_range = {0,1,2,4,5,6,8,10,20,30}
+    #       if att_level in att_range 
+    #           yield from bps.mv(self.attenuation, att_level)
+    #       else
+    #           yield from bps.mv(self.attenuation, )
+    #           print("Requested attenuation out of range")
+    #           return()
+    #
+    #   We should also have a attenuation look up table
+
+    #   initialize and find the current attenuation
+    def __init__(self):
+        self.attenuation    = Attenuator.get_attenuation()
+
+
+    def get_attenuation(self):
+        current_atten = atten[self.attenuator.position]
+        return (current_atten)
+
+    # now this seems redundent
+    @property
+    def status(self):
+        """Return the current attenuator setting"""
+        self.current_attenuation={
+            "atten1"    :   self.att.position,
+        }
+        print(self.current_attenuation)
+
     pass
 
 
@@ -54,12 +93,18 @@ class Beam:
     """Provide full control of the beam."""
 
     def __init__(self):
-        self.slits = Slits(name='slits')
-        self.atten = Attenuator()         # adjustment needed
+        self.up_slit    = SlitUpstream(     name = 'slit_upstream')
+        self.down.slit  = SlitDownstream(   name = 'slit_downstream')
+        self.atten      = Attenuator(       name = 'atten')         # adjustment needed
 
     @property
     def status(self):
         """Return full beam status"""
+        #   Some info to print here:
+        #       beam energy, wavelength etc.
+        #       slit posiitons, beam size (H&V), actual beam size (on detector?)
+        #       beam intensity, IC readings
+        #       attenuation used etc.
         pass
 
     @property
@@ -91,9 +136,11 @@ class EnergyFoil:
     # 270 (-90)      {Ir} 0.125mm  76.111     
     """
     def __init__(self):
-        self.foil = EnergyFoil.get_energyfoil()
+        self.foil           = EnergyFoil.get_energyfoil()
+        self.beam_energy    = EnergyFoil.get_energy()
     
-    def get_energyfoil():
+    def get_energyfoil(Emon_foil="air"):        # pass the config yml file to select the foil, or,
+                                                # set up a default foil to use?
         print("E calibration foil in")
 
         if (Emon_foil=="air") mv foil  0 ;  # air
@@ -110,6 +157,7 @@ class EnergyFoil:
         if (Emon_foil=="Tm") mv foil   8 ;  # Tm
         if (Emon_foil=="Ta") mv foil  10 ;  # Ta
 
+    def get_energy()
         move out the attenuators and then "count_em"
 
 
