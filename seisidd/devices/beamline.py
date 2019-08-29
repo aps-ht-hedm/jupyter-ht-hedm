@@ -9,20 +9,44 @@ from ophyd   import EpicsMotor
 from ophyd   import Component
 
 
-class Slits(MotorBundle):
-    """Control the four blades that form the beam"""
+class SlitUpstream(MotorBundle):
+    """Upstream slit that controls the four blades that form the beam"""
+    #   The slit PVs are not meaningful at all, the actual name will depend on set up
+    #   Here is the upstream slit PVs at 1-ID-E   ("motorPV.LVIO" for soft limit check) 
+    #   1ide1:m20
+    #   1ide1:m21
+    #   1ide1:m22
+    #   1ide1:m23
+    #   didn't found actual control in the scripts, manually adjusted??
 
     left   = Component(EpicsMotor, "PV_left",   name='left'  )
     right  = Component(EpicsMotor, "PV_right",  name='right' )
     top    = Component(EpicsMotor, "PV_top",    name='top'   )
     bottom = Component(EpicsMotor, "PV_bottom", name='bottom')
 
+class SlitDownstream(MotorBundle):
+    """Downstream slit that controls the four blades that form the beam"""
+
+    left   = Component(EpicsMotor, "PV_left",   name='left'  )
+    right  = Component(EpicsMotor, "PV_right",  name='right' )
+    top    = Component(EpicsMotor, "PV_top",    name='top'   )
+    bottom = Component(EpicsMotor, "PV_bottom", name='bottom')
+
+class FocusLenses(MotorBundle):
+    """Lens that focuses the beam"""
+    # TODO: 
+    # Need to figure out the actual set up and motor PVs
+    lens1   = Component(EpicsMotor, "PV_lens1",   name='lens1'  )
+    lens2   = Component(EpicsMotor, "PV_lens2",   name='lens2'  )
+    lens3   = Component(EpicsMotor, "PV_lens3",   name='lens3'  )
+    lens4   = Component(EpicsMotor, "PV_lens4",   name='lens4'  )
 
 class Attenuator(MotorBundle):
     """Attenuator control"""
     # TODO:
     #   Lack of sufficient information to implement
     #   * set_atten() ?? 
+    #   The attenuators are Cu foils on a wheel.
     pass
 
 
