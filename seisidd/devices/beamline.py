@@ -24,15 +24,16 @@ class SlitUpstream(MotorBundle):
     top    = Component(EpicsMotor, "PV_top",    name='top'   )
     bottom = Component(EpicsMotor, "PV_bottom", name='bottom')
 
+
 class SlitDownstream(MotorBundle):
     """Downstream slit that controls the four blades that form the beam"""
-
     left   = Component(EpicsMotor, "PV_left",   name='left'  )
     right  = Component(EpicsMotor, "PV_right",  name='right' )
     top    = Component(EpicsMotor, "PV_top",    name='top'   )
     bottom = Component(EpicsMotor, "PV_bottom", name='bottom')
 
-class FocusLenses(MotorBundle):
+
+class FocusLens1(MotorBundle):
     """Lens that focuses the beam"""
     # TODO: 
     # Need to figure out the actual set up and motor PVs
@@ -42,9 +43,11 @@ class FocusLenses(MotorBundle):
     lens2 = Component(EpicsMotor, "PV_lens2",   name='lens2'  )
     lens3 = Component(EpicsMotor, "PV_lens3",   name='lens3'  )
     lens4 = Component(EpicsMotor, "PV_lens4",   name='lens4'  )
+    ### add more lenses
 
-class Attenuator(MotorBundle):
+class Attenuator:
     """Attenuator control"""
+
     # TODO:
     #   Lack of sufficient information to implement
     #   * set_atten() ?? 
@@ -67,26 +70,38 @@ class Attenuator(MotorBundle):
     #           return()
     #
     #   We should also have a attenuation look up table
+    # TODO:
+    #  class level lookup table to map attenuation level to motor position
 
     #   initialize and find the current attenuation
-    def __init__(self):
-        self.attenuation    = Attenuator.get_attenuation()
+    def __init__(self, att_level=0):
+        self._att_level = att_level
+        self.att_level  = self._att_level
+        self._motor = EpicsMotor()
 
+    @property
+    def att_level(self):
+        return self._att_level
 
-    def get_attenuation(self):
-        current_atten = atten[self.attenuator.position]
-        return (current_atten)
+    @att_level.setter
+    def att_level(self, new_att_level):
+        self._motor.mv(new_att_level)
+        self._att_level = new_att_level
+
+    # def get_attenuation(self):
+    #     current_atten = atten[self.attenuator.position]
+    #     return (current_atten)
 
     # now this seems redundent
-    @property
-    def status(self):
-        """Return the current attenuator setting"""
-        self.current_attenuation={
-            "atten1"    :   self.att.position,
-        }
-        print(self.current_attenuation)
+    # @property
+    # def status(self):
+    #     """Return the current attenuator setting"""
+    #     self.current_attenuation={
+    #         "atten1"    :   self.att.position,
+    #     }
+    #     print(self.current_attenuation)
 
-    pass
+    # pass
 
 
 class Beam:
@@ -94,8 +109,10 @@ class Beam:
 
     def __init__(self):
         self.up_slit    = SlitUpstream(     name = 'slit_upstream')
-        self.down.slit  = SlitDownstream(   name = 'slit_downstream')
+        self.down_slit  = SlitDownstream(   name = 'slit_downstream')
         self.atten      = Attenuator(       name = 'atten')         # adjustment needed
+
+    # __repr__ to be implemented
 
     @property
     def status(self):
