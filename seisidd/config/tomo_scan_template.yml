@@ -1,10 +1,10 @@
 # NOTE:
 # This is a yaml based scan configuration file that can be directly pass
-# to the tomo_scan() function
+# to the tomo_scan() function or nf_scan(), ff_scan()
 # i.e.
-# RE(tomo_step(SCAN_CONFIG.YML))
+# RE(tomo_scan(SCAN_CONFIG.YML))
 
-# let's discuss if we use seperate yml files for tomo, NF, FF or we include them all in one.
+# Will use a centralized yml for all the scans, notebook will spit out individual scan configs/pdf
 
 
 
@@ -35,8 +35,8 @@ NF:
   attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
   FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
   type:    fly           # [step|fly]
-  n_white: 5             # num of white field before and after tomo
-  n_dark:  5             # num of dark field images after tomo
+  n_white: 5             # num of white field before and after nf
+  n_dark:  5             # num of dark field images after nf
   sample_out_position:    # !!relative to the current position!!
     samX:  -1             # mm (relative position to initial position)
     samZ:   0             # mm (relative position to initial position)
@@ -56,8 +56,7 @@ FF:
   attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
   FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
   type:    fly           # [step|fly]
-  n_white: 5             # num of white field before and after tomo
-  n_dark:  5             # num of dark field images after tomo
+  n_dark:  5             # num of dark field images after ff
   sample_out_position:    # !!relative to the current position!!
     samX:  -1             # mm (relative position to initial position)
     samZ:   0             # mm (relative position to initial position)
