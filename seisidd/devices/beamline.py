@@ -19,31 +19,72 @@ class SlitUpstream(MotorBundle):
     #   1ide1:m23
     #   didn't found actual control in the scripts, manually adjusted??
 
-    left   = Component(EpicsMotor, "PV_left",   name='left'  )
-    right  = Component(EpicsMotor, "PV_right",  name='right' )
-    top    = Component(EpicsMotor, "PV_top",    name='top'   )
-    bottom = Component(EpicsMotor, "PV_bottom", name='bottom')
+    h_ib    =   Component(EpicsMotor, "PV_inboard",     name='h_ib'     )   # horizontal in board
+    h_ob    =   Component(EpicsMotor, "PV_outboard",    name='h_ob'     )   # horizontal out board
+    v_tp    =   Component(EpicsMotor, "PV_top",         name='v_tp'     )   # vertial top
+    v_bt    =   Component(EpicsMotor, "PV_bottom",      name='v_bt'     )   # vertial bottom
 
 
 class SlitDownstream(MotorBundle):
     """Downstream slit that controls the four blades that form the beam"""
-    left   = Component(EpicsMotor, "PV_left",   name='left'  )
-    right  = Component(EpicsMotor, "PV_right",  name='right' )
-    top    = Component(EpicsMotor, "PV_top",    name='top'   )
-    bottom = Component(EpicsMotor, "PV_bottom", name='bottom')
+    h_ib    =   Component(EpicsMotor, "PV_inboard",     name='h_ib'     )
+    h_ob    =   Component(EpicsMotor, "PV_outboard",    name='h_ob'     )
+    v_tp    =   Component(EpicsMotor, "PV_top",         name='v_tp'     )
+    v_bt    =   Component(EpicsMotor, "PV_bottom",      name='v_bt'     )
 
 
 class FocusLens1(MotorBundle):
-    """Lens that focuses the beam"""
+    """Lens 1 that focuses the beam"""
     # TODO: 
     # Need to figure out the actual set up and motor PVs
     # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
-    # Let's discuss how to do this...
-    lens1 = Component(EpicsMotor, "PV_lens1",   name='lens1'  )
-    lens2 = Component(EpicsMotor, "PV_lens2",   name='lens2'  )
-    lens3 = Component(EpicsMotor, "PV_lens3",   name='lens3'  )
-    lens4 = Component(EpicsMotor, "PV_lens4",   name='lens4'  )
-    ### add more lenses
+    l1x     =   Component(EpicsMotor, "PV_lens1_x",         name='l1x'      )
+    l1y     =   Component(EpicsMotor, "PV_lens1_y",         name='l1y'      )   
+    l1z     =   Component(EpicsMotor, "PV_lens1_z",         name='l1z'      )
+    l1rot   =   Component(EpicsMotor, "PV_lens1_rot",       name='l1rot'    )
+    l1tx    =   Component(EpicsMotor, "PV_lens1_tiltx",     name='l1tx'     )
+    l1tz    =   Component(EpicsMotor, "PV_lens1_tiltz",     name='l1tz'     )
+
+
+class FocusLens2(MotorBundle):
+    """Lens 2 that focuses the beam"""
+    # TODO: 
+    # Need to figure out the actual set up and motor PVs
+    # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
+    l2x     =   Component(EpicsMotor, "PV_lens2_x",         name='l2x'      )
+    l2y     =   Component(EpicsMotor, "PV_lens2_y",         name='l2y'      )   
+    l2z     =   Component(EpicsMotor, "PV_lens2_z",         name='l2z'      )
+    l2rot   =   Component(EpicsMotor, "PV_lens2_rot",       name='l2rot'    )
+    l2tx    =   Component(EpicsMotor, "PV_lens2_tiltx",     name='l2tx'     )
+    l2tz    =   Component(EpicsMotor, "PV_lens2_tiltz",     name='l2tz'     )
+
+
+class FocusLens3(MotorBundle):
+    """Lens 3 that focuses the beam"""
+    # TODO: 
+    # Need to figure out the actual set up and motor PVs
+    # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
+    l3x     =   Component(EpicsMotor, "PV_lens3_x",         name='l3x'      )
+    l3y     =   Component(EpicsMotor, "PV_lens3_y",         name='l3y'      )   
+    l3z     =   Component(EpicsMotor, "PV_lens3_z",         name='l3z'      )
+    l3rot   =   Component(EpicsMotor, "PV_lens3_rot",       name='l3rot'    )
+    l3tx    =   Component(EpicsMotor, "PV_lens3_tiltx",     name='l3tx'     )
+    l3tz    =   Component(EpicsMotor, "PV_lens3_tiltz",     name='l3tz'     )
+
+
+class FocusLens4(MotorBundle):
+    """Lens 4 that focuses the beam"""
+    # TODO: 
+    # Need to figure out the actual set up and motor PVs
+    # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
+    l4x     =   Component(EpicsMotor, "PV_lens4_x",         name='l4x'      )
+    l4y     =   Component(EpicsMotor, "PV_lens4_y",         name='l4y'      )   
+    l4z     =   Component(EpicsMotor, "PV_lens4_z",         name='l4z'      )
+    l4rot   =   Component(EpicsMotor, "PV_lens4_rot",       name='l4rot'    )
+    l4tx    =   Component(EpicsMotor, "PV_lens4_tiltx",     name='l4tx'     )
+    l4tz    =   Component(EpicsMotor, "PV_lens4_tiltz",     name='l4tz'     )
+
+
 
 class Attenuator:
     """Attenuator control"""
@@ -69,24 +110,62 @@ class Attenuator:
     #           print("Requested attenuation out of range")
     #           return()
     #
-    #   We should also have a attenuation look up table
     # TODO:
-    #  class level lookup table to map attenuation level to motor position
+    #  class level lookup table to map att_level to attenuation
+    _att_level_spreadsheet = {
+        0   :   0     ,
+        1   :   50    ,
+        2   :   NA    ,
+        3   :   NA    ,   
+        4   :   NA    ,   
+        5   :   NA    ,
+        6   :   NA    ,
+        7   :   NA    ,
+        8   :   NA    ,
+        9   :   NA    ,
+        10  :   NA    ,
+        11  :   NA    ,
+        12  :   NA    ,
+        13  :   NA    ,
+        14  :   NA    ,
+        15  :   NA    ,
+        16  :   NA    ,
+        17  :   NA    ,
+        18  :   NA    ,
+        19  :   NA    ,
+        20  :   NA    ,
+        21  :   NA    ,
+        22  :   NA    ,
+        23  :   NA
+    }
+
+    #   This is the total range for att_levels
+    _att_range = tuple(range(24))  
 
     #   initialize and find the current attenuation
+    #   it may be better to initialize atten at maximum
     def __init__(self, att_level=0):
         self._att_level = att_level
         self.att_level  = self._att_level
-        self._motor = EpicsMotor()
+        self._motor = Component(EpicsMotor, "$attenuator_PV", name='_motor'  )
 
     @property
     def att_level(self):
         return self._att_level
 
-    @att_level.setter
+    @att_level.setter       # what's this?
     def att_level(self, new_att_level):
-        self._motor.mv(new_att_level)
-        self._att_level = new_att_level
+        if new_att_level in _att_range:
+            self._motor.mv(new_att_level)       # may need to do (new_att_level-12) depending on motor setup
+            self._att_level = new_att_level
+        else:
+            print("Requested attentuation level out of range!!!")
+            print("Please choose attenuation level from (0 1 2 3 ... ... 21 22 23)")
+            break
+    
+    @property
+    def attenuation(self):
+        return _att_level_spreadsheet[self._att_level]
 
     # def get_attenuation(self):
     #     current_atten = atten[self.attenuator.position]
@@ -108,9 +187,17 @@ class Beam:
     """Provide full control of the beam."""
 
     def __init__(self):
-        self.up_slit    = SlitUpstream(     name = 'slit_upstream')
-        self.down_slit  = SlitDownstream(   name = 'slit_downstream')
-        self.atten      = Attenuator(       name = 'atten')         # adjustment needed
+        self.up_slit    = SlitUpstream()
+        self.down_slit  = SlitDownstream()
+        self.att        = Attenuator()
+        self.foil       = EnergyFoil()         # may need to do the energy calibration outside Beam, manually
+
+    def __repr__(self)
+        """Return the current beam status"""
+        #   slits sizes and positions
+        #   ic readings? maybe
+        #   current att level and attenuation
+        #   beam energy
 
     # __repr__ to be implemented
 
@@ -127,6 +214,7 @@ class Beam:
     @property
     def center(self):
         """return estimated center based on slits positions"""
+        #   Seems like we don't need this any more
         pass
 
 
