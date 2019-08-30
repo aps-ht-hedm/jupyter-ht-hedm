@@ -183,6 +183,7 @@ class EnergyFoil:
     pass
 
 
+#   May not need this
 class Counter:
     """Counter"""
     pass
