@@ -124,7 +124,7 @@ class Tomography(Experiment):
         #  Per conversation with Peter, This package can return the same location on the pin
         #  according to the images.  However, they are requesting more features like determine 
         #  the slit position and size.
-        #  Jun and Peter will test this code during the first of October, let wait for their feedback.
+        #  Jun and Peter will test this code during the first week of October, let wait for their feedback.
 
 
         pass
@@ -437,6 +437,35 @@ class Tomography(Experiment):
 
 class NearField(Experiment):
     """nf-HEDM control for 6-ID-D"""
+    
+    def __init__(self, mode='debug'):
+        Experiment.__init__(self, mode)
+        self._mode = mode
+        # instantiate device
+        self.nf_stage       = NearField.get_nfstage(self._mode)
+        self.fly_control    = NearField.get_flycontrol(self._mode)
+        self.nf_det         = NearField.get_detector(self._mode)
+        self.nf_beam        = Beam()
+        # TODO:
+        # we need to do some initialization with Beam based on 
+        # a cached/lookup table
+        # 
+    
+    def __repr__(self):
+        """Return summary of the current experiment status"""
+        # TODO:
+        #   verbose string representation of the experiment and beamline
+        #   status as a dictionary -> yaml
+        pass 
+    
+    
+    
+    
+    
+    
+    
+    
+    
     pass
 
 
