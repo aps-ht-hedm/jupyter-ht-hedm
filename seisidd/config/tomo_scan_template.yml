@@ -13,6 +13,8 @@ tomo:
                           #   probably just need to do once???
   attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
   FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
+  beamsize_h:   0.5       # horizontal beam size
+  beamsize_v:   0.5       # vertical beam size
   type:    fly           # [step|fly]
   n_white: 5             # num of white field before and after tomo
   n_dark:  5             # num of dark field images after tomo
@@ -34,6 +36,8 @@ NF:
   energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
   attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
   FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
+  beamsize_h:   0.5       # horizontal beam size
+  beamsize_v:   0.5       # vertical beam size
   type:    fly           # [step|fly]
   n_white: 5             # num of white field before and after nf
   n_dark:  5             # num of dark field images after nf
@@ -55,6 +59,8 @@ FF:
   energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
   attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
   FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
+  beamsize_h:   0.5       # horizontal beam size
+  beamsize_v:   0.5       # vertical beam size
   type:    fly           # [step|fly]
   n_dark:  5             # num of dark field images after ff
   sample_out_position:    # !!relative to the current position!!
