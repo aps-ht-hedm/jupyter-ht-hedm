@@ -186,9 +186,14 @@ class Attenuator:
 class Beam:
     """Provide full control of the beam."""
 
+    #   I'm not quite sure if it is safe to do all this here. /JasonZ
     def __init__(self):
-        self.up_slit    = SlitUpstream()
-        self.down_slit  = SlitDownstream()
+        self.slit1      = SlitUpstream()
+        self.slit2      = SlitDownstream()
+        self.l1         = FocusLens1()
+        self.l2         = FocusLens2()
+        self.l3         = FocusLens3()
+        self.l4         = FocusLens4()
         self.att        = Attenuator()
         self.foil       = EnergyFoil()         # may need to do the energy calibration outside Beam, manually
 
@@ -216,6 +221,8 @@ class Beam:
         """return estimated center based on slits positions"""
         #   Seems like we don't need this any more
         pass
+
+    
 
 
 class EnergyFoil:
