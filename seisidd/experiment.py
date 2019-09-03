@@ -101,7 +101,7 @@ class Tomography(Experiment):
         self.tomo_stage  = Tomography.get_tomostage(self._mode)
         self.fly_control = Tomography.get_flycontrol(self._mode)
         self.tomo_det    = Tomography.get_detector(self._mode)
-        self.tomo_beam   = Beam()
+        self.tomo_beam   = Tomography.get_tomobeam(self._mode)
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
@@ -128,7 +128,74 @@ class Tomography(Experiment):
 
 
         pass
-        
+
+    @staticmethod
+    def get_tomobeam(mode):
+        """return tomobeam based on given mode"""
+        if mode.lower() in ['dryrun', 'production']:
+            tomobeam = Beam()
+        elif mode.lower() == 'debug':
+            # NOTE:
+            #   This is a place holder for maybe additional control of the beam
+            #   in the debug mode.  Let's discuss what should be exposed here.
+            #   Or, we just use some simulated motors for the beam here as below?
+            from ophyd import sim
+            from ophyd import MotorBundle
+            #   simulated tomobeam motor bundle.  This part need FIX!!!
+            tomobeam            = MotorBundle(name='tomobeam')
+            #   Upstream slit, slit1
+            tomobeam.s1         = MotorBundle(name='s1')
+            tomobeam.s1.h_ib    = sim.SynAxis(name='h_ib')
+            tomobeam.s1.h_ob    = sim.SynAxis(name='h_ob')
+            tomobeam.s1.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
+            tomobeam.s1.v_tp    = sim.SynAxis(name='v_tp')
+            tomobeam.s1.v_bt    = sim.SynAxis(name='v_bt')
+            tomobeam.s1.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
+            #   Downstream slit, slit2
+            tomobeam.s2         = MotorBundle(name='s2')
+            tomobeam.s2.h_ib    = sim.SynAxis(name='h_ib')
+            tomobeam.s2.h_ob    = sim.SynAxis(name='h_ob')
+            tomobeam.s2.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
+            tomobeam.s2.v_tp    = sim.SynAxis(name='v_tp')
+            tomobeam.s2.v_bt    = sim.SynAxis(name='v_bt')
+            tomobeam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
+            #   Focus lens 1
+            tomobeam.l1         = MotorBundle(name='l1')
+            tomobeam.l1.l1x     = sim.SynAxis(name='l1x')
+            tomobeam.l1.l1y     = sim.SynAxis(name='l1y')
+            tomobeam.l1.l1z     = sim.SynAxis(name='l1z')
+            tomobeam.l1.l1rot   = sim.SynAxis(name='l1rot')
+            tomobeam.l1.l1tx    = sim.SynAxis(name='l1tx')
+            tomobeam.l1.l1tz    = sim.SynAxis(name='l1tz')
+            #   Focus lens 2
+            tomobeam.l2         = MotorBundle(name='l2')
+            tomobeam.l2.l1x     = sim.SynAxis(name='l2x')
+            tomobeam.l2.l1y     = sim.SynAxis(name='l2y')
+            tomobeam.l2.l1z     = sim.SynAxis(name='l2z')
+            tomobeam.l2.l1rot   = sim.SynAxis(name='l2rot')
+            tomobeam.l2.l1tx    = sim.SynAxis(name='l2tx')
+            tomobeam.l2.l1tz    = sim.SynAxis(name='l2tz')
+            #   Focus lens 3
+            tomobeam.l3         = MotorBundle(name='l3')
+            tomobeam.l3.l1x     = sim.SynAxis(name='l3x')
+            tomobeam.l3.l1y     = sim.SynAxis(name='l3y')
+            tomobeam.l3.l1z     = sim.SynAxis(name='l3z')
+            tomobeam.l3.l1rot   = sim.SynAxis(name='l3rot')
+            tomobeam.l3.l1tx    = sim.SynAxis(name='l3tx')
+            tomobeam.l3.l1tz    = sim.SynAxis(name='l3tz')
+            #   Focus lens 4
+            tomobeam.l4         = MotorBundle(name='l4')
+            tomobeam.l4.l1x     = sim.SynAxis(name='l4x')
+            tomobeam.l4.l1y     = sim.SynAxis(name='l4y')
+            tomobeam.l4.l1z     = sim.SynAxis(name='l4z')
+            tomobeam.l4.l1rot   = sim.SynAxis(name='l4rot')
+            tomobeam.l4.l1tx    = sim.SynAxis(name='l4tx')
+            tomobeam.l4.l1tz    = sim.SynAxis(name='l4tz')
+
+            return tomobeam
+
+
+
     @staticmethod
     def get_tomostage(mode):
         """return tomostage based on given mode"""
@@ -141,7 +208,7 @@ class Tomography(Experiment):
             #    synAxis.
             from ophyd import sim
             from ophyd import MotorBundle
-            tomostage = MotorBundle(name="tomostage")
+            tomostage       = MotorBundle(name="tomostage")
             tomostage.preci = sim.SynAxis(name='preci')
             tomostage.samX  = sim.SynAxis(name='samX')
             tomostage.ksamX = sim.SynAxis(name='ksamX')
@@ -319,11 +386,13 @@ class Tomography(Experiment):
         Tomography scan plan based on given configuration
         """
         # unpack devices
-        det = self.tomo_det
-        tomostage = self.tomo_stage
-        shutter = self.shutter
-        shutter_suspender = self.suspend_shutter
+        det                 = self.tomo_det
+        tomostage           = self.tomo_stage
+        shutter             = self.shutter
+        shutter_suspender   = self.suspend_shutter
+        tomobeam            = self.tomo_beam
         
+        # load experiment configurations
         cfg = load_config(cfg) if type(cfg) != dict else cfg
         
         # TODO:
@@ -351,7 +420,39 @@ class Tomography(Experiment):
         #   Perform energy calibration, set intended attenuation
         #   set the lenses, change the intended slit size
         #   prime the control of FS
+
+        #############################################
+        ## step 0.5: check and set beam parameters ##
+        #############################################
         
+        # set slit sizes
+        # These are the 1-ID-E controls
+        #   epics_put("1ide1:Kohzu_E_upHsize.VAL", ($1), 10) ##
+        #   epics_put("1ide1:Kohzu_E_dnHsize.VAL", (($1)+0.1), 10) ##
+        #   epics_put("1ide1:Kohzu_E_upVsize.VAL", ($2), 10) ## VERT SIZE
+        #   epics_put("1ide1:Kohzu_E_dnVsize.VAL", ($2)+0.1, 10) ##
+        _beam_h_size    =   cfg['tomo']['beamsize_h']
+        _beam_v_size    =   cfg['tomo']['beamsize_v']
+        yield from bps.mv(tomobeam.s1.h_size, _beam_h_size          )
+        yield from bps.mv(tomobeam.s1.v_size, _beam_v_size          )
+        yield from bps.mv(tomobeam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
+        yield from bps.mv(tomobeam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
+
+        # set attenuation
+        _attenuation = cfg['tomo']['attenuation']
+        yield from bps.mv(tomobeam.att.att_level, _attenuation)
+
+        # check energy
+        # need to be clear what we want to do here
+        _energy_foil = cfg['tomo']['energyfoil']
+        yield from bps.mv(tomobeam.foil, _energy_foil)      # need to complete this part
+
+        # TODO:
+        #   set up FS controls
+        #   decide what to do with the focus lenses
+
+
+
         # calculate slew speed for fly scan
         # https://github.com/decarlof/tomo2bm/blob/master/flir/libs/aps2bm_lib.py
         # TODO: considering blue pixels, use 2BM code as ref
