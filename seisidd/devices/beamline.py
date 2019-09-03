@@ -19,18 +19,21 @@ class SlitUpstream(MotorBundle):
     #   1ide1:m23
     #   didn't found actual control in the scripts, manually adjusted??
 
-    h_ib    =   Component(EpicsMotor, "PV_inboard",     name='h_ib'     )   # horizontal in board
-    h_ob    =   Component(EpicsMotor, "PV_outboard",    name='h_ob'     )   # horizontal out board
-    v_tp    =   Component(EpicsMotor, "PV_top",         name='v_tp'     )   # vertial top
-    v_bt    =   Component(EpicsMotor, "PV_bottom",      name='v_bt'     )   # vertial bottom
-
+    h_ib    =   Component(EpicsMotor, "PV_inboard",                 name='h_ib'     )   # horizontal in board
+    h_ob    =   Component(EpicsMotor, "PV_outboard",                name='h_ob'     )   # horizontal out board
+    h_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upHsize.VAL",  name='h_size'   )   # horizontal size !!!!!need to check this
+    v_tp    =   Component(EpicsMotor, "PV_top",                     name='v_tp'     )   # vertial top
+    v_bt    =   Component(EpicsMotor, "PV_bottom",                  name='v_bt'     )   # vertial bottom
+    v_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upVsize.VAL",  name='v_size'   )   # vertical size !!!!!need to check this
 
 class SlitDownstream(MotorBundle):
     """Downstream slit that controls the four blades that form the beam"""
-    h_ib    =   Component(EpicsMotor, "PV_inboard",     name='h_ib'     )
-    h_ob    =   Component(EpicsMotor, "PV_outboard",    name='h_ob'     )
-    v_tp    =   Component(EpicsMotor, "PV_top",         name='v_tp'     )
-    v_bt    =   Component(EpicsMotor, "PV_bottom",      name='v_bt'     )
+    h_ib    =   Component(EpicsMotor, "PV_inboard",                 name='h_ib'     )
+    h_ob    =   Component(EpicsMotor, "PV_outboard",                name='h_ob'     )
+    h_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_dnHsize.VAL",  name='h_size'   )   # horizontal size !!!!!need to check this
+    v_tp    =   Component(EpicsMotor, "PV_top",                     name='v_tp'     )
+    v_bt    =   Component(EpicsMotor, "PV_bottom",                  name='v_bt'     )
+    v_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upVsize.VAL",  name='v_size'   )   # vertical size !!!!!need to check this
 
 
 class FocusLens1(MotorBundle):
