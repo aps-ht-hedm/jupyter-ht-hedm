@@ -280,7 +280,7 @@ class Counter:
 class FastShutter:
     """Fast shutter for taking dark field images"""
     # NOTE:
-    #  apstoos provides shutter class for the main/slow beamline shutter,
+    #  apstools provides shutter class for the main/slow beamline shutter,
     #  which can be used as a reference when defining the fast shutter
     #  The FS is totally different from what we thought, Let talk more before implement.  /JasonZ
     pass
