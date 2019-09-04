@@ -142,7 +142,9 @@ class Attenuator:
         23  :   NA
     }
 
-    #   This is the total range for att_levels
+    #   This is the total range for current att_levels
+    # TODO:
+    #   update this range with actual setup
     _att_range = tuple(range(24))  
 
     #   initialize and find the current attenuation
@@ -162,9 +164,8 @@ class Attenuator:
             self._motor.mv(new_att_level)       # may need to do (new_att_level-12) depending on motor setup
             self._att_level = new_att_level
         else:
-            print("Requested attentuation level out of range!!!")
-            print("Please choose attenuation level from (0 1 2 3 ... ... 21 22 23)")
-            break
+            raise ValueError(f"Requested attentuation level {new_att_level} is out of range!!!"
+                               "\n            Please choose attenuation level from (0 1 2 3 ... ... 21 22 23) ")
     
     @property
     def attenuation(self):
