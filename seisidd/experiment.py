@@ -674,6 +674,43 @@ class NearField(Experiment):
             raise ValueError(f"Invalide mode, {mode}")
         return psofly
 
+    @staticmethod
+        def get_detector(mode):
+            if mode.lower() == 'debug':
+                # TODO: need better simulated detectors
+                from ophyd import sim
+                det = sim.noisy_det
+            elif mode.lower() in ['dryrun', 'production']:
+                det = PointGreyDetector6IDD("PV_DET", name='det')
+                # check the following page for important information
+                # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
+                #
+                epics.caput("PV_DET:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+                epics.caput("PV_DET:cam1:FrameType.ONST", "/exchange/data")
+                epics.caput("PV_DET:cam1:FrameType.TWST", "/exchange/data_white_post")
+                epics.caput("PV_DET:cam1:FrameType.THST", "/exchange/data_dark")
+                # ophyd need this configuration
+                epics.caput("PV_DET:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+                epics.caput("PV_DET:cam1:FrameType_RBV.ONST", "/exchange/data")
+                epics.caput("PV_DET:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+                epics.caput("PV_DET:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+                # set the layout file for cam
+                # TODO:  need to udpate with acutal config files for 6-ID-D
+                _current_fp = str(pathlib.Path(__file__).parent.absolute())
+                _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+                _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+                det.cam.nd_attributes_file.put(_attrib_fp)
+                det.hdf1.xml_file_name.put(_layout_fp)
+                # turn off the problematic auto setting in cam
+                det.cam.auto_exposure_auto_mode.put(0)  
+                det.cam.sharpness_auto_mode.put(0)
+                det.cam.gain_auto_mode.put(0)
+                det.cam.frame_rate_auto_mode.put(0)
+            else:
+                raise ValueError(f"Invalide mode, {mode}")
+            return det
+
+
 
 
 
