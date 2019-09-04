@@ -445,7 +445,7 @@ class Tomography(Experiment):
         # check energy
         # need to be clear what we want to do here
         _energy_foil = cfg['tomo']['energyfoil']
-        yield from bps.mv(tomobeam.foil, _energy_foil)      # need to complete this part
+        yield from bps.mv(tomobeam.foil, _energy_foil)      # need to complete this part in beamline.py
 
         # TODO:
         #   set up FS controls
