@@ -9,12 +9,14 @@
 
 
 tomo:
+  ## Beamline optics
   energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
                           #   probably just need to do once???
   attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
   FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
   beamsize_h:   0.5       # horizontal beam size
   beamsize_v:   0.5       # vertical beam size
+  ## Scan parameters
   type:    fly           # [step|fly]
   n_white: 5             # num of white field before and after tomo
   n_dark:  5             # num of dark field images after tomo
@@ -34,26 +36,23 @@ tomo:
   readout_time:  0.001    # detector readout time
 
 nf:
+  ## Beamline optics
   energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
   attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
   FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
   beamsize_h:   0.5       # horizontal beam size
   beamsize_v:   0.5       # vertical beam size
-  type:    fly           # [step|fly]
-  n_white: 5             # num of white field before and after nf
-  n_dark:  5             # num of dark field images after nf
-  sample_out_position:    # !!relative to the current position!!
-    x_base:  -1             # mm (relative position to initial position)
-    z_base:   0             # mm (relative position to initial position)
+  ## Scan parameters
+  type:    fly           # always fly for NF
+  n_dark:  5             # num of dark field images before and after nf
   volume:                 # NF scan volume
     ky_start:   2.5       # ky position of first NF layer
     ky_step:    0.5       # step between layers, can be negative
     n_layers:   10        # total number of layers to be done
   acquire_time:   0.10    # sec
-  acquire_period: 0.11    # sec, acquire_time+0.01, (not being used in fly)
   omega_step:     0.2     # degree
   omega_start:    0.0    # degree
-  omega_end:     10.0    # degree
+  omega_end:     360.0    # degree
   n_frames:       1       # 5 frames -> 1 images
   # below are for fly_scan only
   ROT_STAGE_FAST_SPEED:       1   # degree/second,
@@ -68,9 +67,6 @@ ff:
   beamsize_v:   0.5       # vertical beam size
   type:    fly           # [step|fly]
   n_dark:  5             # num of dark field images after ff
-  sample_out_position:    # !!relative to the current position!!
-    samX:  -1             # mm (relative position to initial position)
-    samZ:   0             # mm (relative position to initial position)
   acquire_time:   0.10    # sec
   acquire_period: 0.11    # sec, acquire_time+0.01, (not being used in fly)
   omega_step:     0.2     # degree
