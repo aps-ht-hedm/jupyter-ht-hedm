@@ -20,6 +20,7 @@ from  .devices.beamline              import Beam
 from  .devices.beamline              import FastShutter
 from  .devices.motors                import StageAero
 from  .devices.motors                import EnsemblePSOFlyDevice
+from  .devices.detectors             import PointGreyDetector   
 from  .utility                       import load_config
 
 import bluesky.preprocessors as bpp
@@ -244,6 +245,7 @@ class Tomography(Experiment):
             from ophyd import sim
             det = sim.noisy_det
         elif mode.lower() in ['dryrun', 'production']:
+            #   need to check this name for assigning the detector
             det = PointGreyDetector6IDD("PV_DET", name='det')
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
@@ -435,7 +437,6 @@ class Tomography(Experiment):
         #############################################
         ## step 0.1: check and set beam parameters ##
         #############################################
-        
         # set slit sizes
         # These are the 1-ID-E controls
         #   epics_put("1ide1:Kohzu_E_upHsize.VAL", ($1), 10) ##
@@ -474,7 +475,7 @@ class Tomography(Experiment):
         
         # need to make sure that the sample out position is the same for both front and back
         x0, z0 = tomostage.kx.position, tomostage.kz.position
-        dfx, dfz = cfg['tomo']['sample_out_position']['samX'], cfg['tomo']['sample_out_position']['samZ']
+        dfx, dfz = cfg['tomo']['sample_out_position']['x_base'], cfg['tomo']['sample_out_position']['z_base']
         rotang = np.radians(cfg['tomo']['omega_end']-cfg['tomo']['omega_start'])
         rotm = np.array([[ np.cos(rotang), np.sin(rotang)],
                             [-np.sin(rotang), np.cos(rotang)]])
@@ -493,6 +494,9 @@ class Tomography(Experiment):
         @bpp.stage_decorator([det])
         @bpp.run_decorator()
         def scan_closure():
+            # TODO:
+            #   Somewhere we need to check the light status
+
             # open shutter for beam
             yield from bps.mv(shutter, 'open')
             yield from bps.install_suspender(shutter_suspender)
@@ -637,7 +641,7 @@ class NearField(Experiment):
 
     @staticmethod
     def get_nfstage(mode):
-        """return tomostage based on given mode"""
+        """return nfstage based on given mode"""
         if mode.lower() in ['dryrun', 'production']:
             nfstage = StageAero(name='nfstage')
         elif mode.lower() == 'debug':
@@ -647,7 +651,7 @@ class NearField(Experiment):
             #    synAxis.
             from ophyd import sim
             from ophyd import MotorBundle
-            nfstage         = MotorBundle(name="tomostage")
+            nfstage         = MotorBundle(name="nfstage")
             nfstage.kx      = sim.SynAxis(name='kx')
             nfstage.ky      = sim.SynAxis(name='ky')
             nfstage.kz      = sim.SynAxis(name='kz')
@@ -712,33 +716,25 @@ class NearField(Experiment):
             raise ValueError(f"Invalide mode, {mode}")
         return det
 
-    # ----- pre-defined scan plans starts from here
-    @bpp.run_decorator()
-    def collect_dark_field(self, cfg_nf):
-        """
-        Collect dark field images using fastshutter
-        """
-        # TODO:
-        #   Need to toggle Fast shutter
-        det = self.nf_det
-    
-        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
-        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
-        yield from bps.mv(det.proc1.enable, 1)
-        yield from bps.mv(det.proc1.reset_filter, 1)
-        yield from bps.mv(det.proc1.num_filter, cfg_nf['n_frames'])
-        yield from bps.mv(det.cam.trigger_mode, "Internal")
-        yield from bps.mv(det.cam.image_mode, "Multiple")
-        yield from bps.mv(det.cam.num_images, cfg_nf['n_frames']*cfg_nf['n_dark'])
-        yield from bps.trigger_and_read([det])
+    ############################
+    ## Near Field Calibration ##
+    ############################
+    #   NOT to be used in scan plans
+    def calibration(self):
+        """Image calibration for the two NF z positions"""
+        det     = self.nf_det
+        # add the z motor?
+        # add the beamstp motor?
+        pass
 
+    # ----- pre-defined scan plans starts from here
     @bpp.run_decorator()
     def fly_scan(self, cfg_nf):
         """
         Collect projections with fly motion
         """
-        det = self.nf_det
-        psofly = self.fly_control
+        det     = self.nf_det
+        psofly  = self.fly_control
         
         # TODO:
         #   Need to set up FS control for the scan
@@ -767,13 +763,53 @@ class NearField(Experiment):
         yield from bps.abs_set(psofly.fly, "Fly", group='fly')
         yield from bps.wait(group='fly')
 
+    @bpp.stage_decorator([det])         
+    @bpp.run_decorator()
+    def scan_singlelayer(self, cfg_nf, _layer_number):
+        # TODO:
+        #   Somewhere we need to check the light status, or, add a suspender?
+        # config output
+        # currently set up to output 1 HDF5 file for each NF layer, including 2 det positions
+        for me in [det.tiff1, det.hdf1]:
+            yield from bps.mv(me.file_path, fp)
+            yield from bps.mv(me.file_name, '{fn}_layer{:06d}'.format(fn, _layer_number))
+            yield from bps.mv(me.file_write_mode, 2)
+            yield from bps.mv(me.num_capture, cfg['nf'['total_images']*2)       # *2 for two det positions
+            yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
+
+        if cfg['output']['type'] in ['tif', 'tiff']:
+            yield from bps.mv(det.tiff1.enable, 1)
+            yield from bps.mv(det.tiff1.capture, 1)
+            yield from bps.mv(det.hdf1.enable, 0)
+        elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
+            yield from bps.mv(det.tiff1.enable, 0)
+            yield from bps.mv(det.hdf1.enable, 1)
+            yield from bps.mv(det.hdf1.capture, 1)
+        else:
+            raise ValueError(f"Unsupported output type {cfg['output']['type']}")
+
+        #  TODO:
+        #   Add FS control here to toggle the FS or Main Shutter?
+
+        # collect projections in the current layer in the FIRST det z position
+        yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
+        yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z1']) # need actual motor
+        yield from self.fly_scan(cfg['nf'])
+
+        # collect projections in the current layer in the SECOND det z position
+        yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z2']) # need actual motor
+        yield from self.fly_scan(cfg['nf'])
+        
+        #  TODO:
+        #   Add FS control here to close the FS or Main Shutter?
+
     def nf_scan(self, cfg):
         """
         NearField scan plan based on given configuration
         """
         # unpack devices
         det                 = self.nf_det
-        tomostage           = self.nf_stage
+        stage               = self.nf_stage
         shutter             = self.shutter
         shutter_suspender   = self.suspend_shutter
         beam                = self.nf_beam
@@ -787,18 +823,96 @@ class NearField(Experiment):
         # update the cached motor position in the dict in case exp goes wrong
         _cahed_position = self.nf_stage.cache_position()
     
+        #########################
+        ## step 0: preparation ##
+        #########################
+        acquire_time   = cfg['nf']['acquire_time']
+        n_dark         = cfg['nf']['n_dark']
+        angs = np.arange(
+            cfg['nf']['omega_start'], 
+            cfg['nf']['omega_end']+cfg['nf']['omega_step']/2,
+            cfg['nf']['omega_step'],
+        )
+        n_projections = len(angs)
+        cfg['nf']['n_projections'] = n_projections
+        cfg['nf']['total_images']  = n_projections
+        fp = cfg['output']['filepath']
+        fn = cfg['output']['fileprefix']
 
+        # consider adding an extra step to:
+        #   Perform energy calibration, set intended attenuation
+        #   set the lenses, change the intended slit size
+        #   prime the control of FS
+        #############################################
+        ## step 0.1: check and set beam parameters ##
+        #############################################
+        # set slit sizes
+        # These are the 1-ID-E controls
+        #   epics_put("1ide1:Kohzu_E_upHsize.VAL", ($1), 10) ##
+        #   epics_put("1ide1:Kohzu_E_dnHsize.VAL", (($1)+0.1), 10) ##
+        #   epics_put("1ide1:Kohzu_E_upVsize.VAL", ($2), 10) ## VERT SIZE
+        #   epics_put("1ide1:Kohzu_E_dnVsize.VAL", ($2)+0.1, 10) ##
+        _beam_h_size    =   cfg['nf']['beamsize_h']
+        _beam_v_size    =   cfg['nf']['beamsize_v']
+        yield from bps.mv(beam.s1.h_size, _beam_h_size          )
+        yield from bps.mv(beam.s1.v_size, _beam_v_size          )
+        yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
+        yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
 
+        # set attenuation
+        _attenuation = cfg['nf']['attenuation']
+        yield from bps.mv(beam.att.att_level, _attenuation)
 
+        # check energy
+        # need to be clear what we want to do here
+        _energy_foil = cfg['nf']['energyfoil']
+        yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
 
-    
-    
-    
-    
-    
-    
-    
-    pass
+        # TODO:
+        #   set up FS controls
+        #   decide what to do with the focus lenses
+
+        #######################################
+        ## calculate slew speed for fly scan ##
+        #######################################
+        # https://github.com/decarlof/tomo2bm/blob/master/flir/libs/aps2bm_lib.py
+        # TODO: considering blue pixels, use 2BM code as ref
+        scan_time = (acquire_time+cfg['nf']['readout_time'])*n_projections
+        slew_speed = (angs.max() - angs.min())/scan_time
+        cfg['nf']['slew_speed'] = slew_speed
+        
+        # need to make sure that the sample out position is the same for both front and back
+        x0, z0 = stage.kx.position, stage.kz.position
+        dfx, dfz = cfg['nf']['sample_out_position']['x_base'], cfg['nf']['sample_out_position']['z_base']
+        rotang = np.radians(cfg['nf']['omega_end']-cfg['nf']['omega_start'])
+        rotm = np.array([[ np.cos(rotang), np.sin(rotang)],
+                            [-np.sin(rotang), np.cos(rotang)]])
+        dbxz = np.dot(rotm, np.array([dfx, dfz]))
+        dbx = dbxz[0] if abs(dbxz[0]) > 1e-8 else 0.0
+        dbz = dbxz[1] if abs(dbxz[1]) > 1e-8 else 0.0
+        # now put the value to dict
+        cfg['nf']['initial_kx']       = x0
+        cfg['nf']['initial_kz']       = z0
+        cfg['nf']['fronte_white_kx']  = x0 + dfx
+        cfg['nf']['fronte_white_kz']  = z0 + dfz
+        cfg['nf']['back_white_kx']    = x0 + dbx
+        cfg['nf']['back_white_kz']    = z0 + dbz
+        
+        ## Ideally, we set up the FS control once, then the FS will be controlled with
+        ## intended signals
+        
+        ############################
+        ## Near Field Volume Scan ##
+        ############################
+        n_layers   = cfg['nf']['volume']['n_layers']
+        ky_start   = cfg['nf']['volume']['ky_start']
+        ky_step    = cfg['nf']['volume']['ky_step']
+        _scan_positions = np.arange(ky_start, ky_start+(n_layers-0.5)*ky_step, ky_step)
+        _layer_number_count  = 1
+        for _current_scan_ky in _scan_position:
+            yield from bps.mv(stage.ky, _current_scan_ky)
+            yield from scan_singlelayer(cfg['nf'], _layer_number_count))     ### NOT sure if this works!!!
+            _layer_number_count += 1
 
 
 class FarField(Experiment):
