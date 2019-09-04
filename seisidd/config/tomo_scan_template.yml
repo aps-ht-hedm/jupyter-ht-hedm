@@ -18,9 +18,10 @@ tomo:
   type:    fly           # [step|fly]
   n_white: 5             # num of white field before and after tomo
   n_dark:  5             # num of dark field images after tomo
-  sample_out_position:    # !!relative to the current position!!
-    samX:  -1             # mm (relative position to initial position)
-    samZ:   0             # mm (relative position to initial position)
+  sample_out_position:    # !!relative to the current position!! 
+                          # which motors are we using? kx or x_base?
+    x_base:  -1             # mm (relative position to initial position)
+    z_base:   0             # mm (relative position to initial position)
   acquire_time:   0.10    # sec
   acquire_period: 0.11    # sec, acquire_time+0.01, (not being used in fly)
   omega_step:     0.2     # degree
