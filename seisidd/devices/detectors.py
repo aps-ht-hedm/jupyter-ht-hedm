@@ -84,6 +84,7 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
         """move the detector to the new location"""
         # NOTE:
         #   This is for interactive control only, cannot be used in scan plan
+        #   We will need to use this position during scan, i.e. near field z scan
         pass
 
     # TODO:

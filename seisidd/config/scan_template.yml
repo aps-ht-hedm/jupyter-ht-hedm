@@ -44,7 +44,13 @@ nf:
   beamsize_v:   0.5       # vertical beam size
   ## Scan parameters
   type:    fly           # always fly for NF
-  n_dark:  5             # num of dark field images before and after nf
+  sample_out_position:    # !!relative to the current position!! 
+                          # which motors are we using? kx or x_base?
+    x_base:   -1            # mm (relative position to initial position)
+    z_base:   0             # mm (relative position to initial position)
+  detector_z_position:    # The two detector z positions for NF
+    nf_z1:    7     
+    nf_z2:    10      
   volume:                 # NF scan volume
     ky_start:   2.5       # ky position of first NF layer
     ky_step:    0.5       # step between layers, can be negative
