@@ -209,7 +209,7 @@ class Tomography(Experiment):
             from ophyd import sim
             from ophyd import MotorBundle
             tomostage       = MotorBundle(name="tomostage")
-            tomostage.preci = sim.SynAxis(name='preci')
+            tomostage.aero  = sim.SynAxis(name='aero')
             tomostage.samX  = sim.SynAxis(name='samX')
             tomostage.ksamX = sim.SynAxis(name='ksamX')
             tomostage.ksamZ = sim.SynAxis(name='ksamz')
@@ -347,7 +347,7 @@ class Tomography(Experiment):
         )
         for ang in angs:
             yield from bps.checkpoint()
-            yield from bps.mv(tomostage.preci, ang)
+            yield from bps.mv(tomostage.aero, ang)
             yield from bps.trigger_and_read([det])
 
     @bpp.run_decorator()
@@ -401,7 +401,9 @@ class Tomography(Experiment):
         # update the cached motor position in the dict in case exp goes wrong
         _cahed_position = self.tomo_stage.cache_position()
     
-        # step 0: preparation
+        #########################
+        ## step 0: preparation ##
+        #########################
         acquire_time   = cfg['tomo']['acquire_time']
         n_white        = cfg['tomo']['n_white']
         n_dark         = cfg['tomo']['n_dark']
@@ -422,7 +424,7 @@ class Tomography(Experiment):
         #   prime the control of FS
 
         #############################################
-        ## step 0.5: check and set beam parameters ##
+        ## step 0.1: check and set beam parameters ##
         #############################################
         
         # set slit sizes
@@ -546,7 +548,7 @@ class NearField(Experiment):
         self.nf_stage       = NearField.get_nfstage(self._mode)
         self.fly_control    = NearField.get_flycontrol(self._mode)
         self.nf_det         = NearField.get_detector(self._mode)
-        self.nf_beam        = Beam()
+        self.nf_beam        = NearField.get_nfbeam)self._mode)
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
@@ -559,7 +561,110 @@ class NearField(Experiment):
         #   status as a dictionary -> yaml
         pass 
     
-    
+    @staticmethod
+    def get_nfbeam(mode):
+        """return tomobeam based on given mode"""
+        if mode.lower() in ['dryrun', 'production']:
+            nfbeam = Beam()
+        elif mode.lower() == 'debug':
+            # NOTE:
+            #   This is a place holder for maybe additional control of the beam
+            #   in the debug mode.  Let's discuss what should be exposed here.
+            #   Or, we just use some simulated motors for the beam here as below?
+            from ophyd import sim
+            from ophyd import MotorBundle
+            #   simulated tomobeam motor bundle.  This part need FIX!!!
+            nfbeam            = MotorBundle(name='nfbeam')
+            #   Upstream slit, slit1
+            nfbeam.s1         = MotorBundle(name='s1')
+            nfbeam.s1.h_ib    = sim.SynAxis(name='h_ib')
+            nfbeam.s1.h_ob    = sim.SynAxis(name='h_ob')
+            nfbeam.s1.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
+            nfbeam.s1.v_tp    = sim.SynAxis(name='v_tp')
+            nfbeam.s1.v_bt    = sim.SynAxis(name='v_bt')
+            nfbeam.s1.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
+            #   Downstream slit, slit2
+            nfbeam.s2         = MotorBundle(name='s2')
+            nfbeam.s2.h_ib    = sim.SynAxis(name='h_ib')
+            nfbeam.s2.h_ob    = sim.SynAxis(name='h_ob')
+            nfbeam.s2.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
+            nfbeam.s2.v_tp    = sim.SynAxis(name='v_tp')
+            nfbeam.s2.v_bt    = sim.SynAxis(name='v_bt')
+            nfbeam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
+            #   Focus lens 1
+            nfbeam.l1         = MotorBundle(name='l1')
+            nfbeam.l1.l1x     = sim.SynAxis(name='l1x')
+            nfbeam.l1.l1y     = sim.SynAxis(name='l1y')
+            nfbeam.l1.l1z     = sim.SynAxis(name='l1z')
+            nfbeam.l1.l1rot   = sim.SynAxis(name='l1rot')
+            nfbeam.l1.l1tx    = sim.SynAxis(name='l1tx')
+            nfbeam.l1.l1tz    = sim.SynAxis(name='l1tz')
+            #   Focus lens 2
+            nfbeam.l2         = MotorBundle(name='l2')
+            nfbeam.l2.l1x     = sim.SynAxis(name='l2x')
+            nfbeam.l2.l1y     = sim.SynAxis(name='l2y')
+            nfbeam.l2.l1z     = sim.SynAxis(name='l2z')
+            nfbeam.l2.l1rot   = sim.SynAxis(name='l2rot')
+            nfbeam.l2.l1tx    = sim.SynAxis(name='l2tx')
+            nfbeam.l2.l1tz    = sim.SynAxis(name='l2tz')
+            #   Focus lens 3
+            nfbeam.l3         = MotorBundle(name='l3')
+            nfbeam.l3.l1x     = sim.SynAxis(name='l3x')
+            nfbeam.l3.l1y     = sim.SynAxis(name='l3y')
+            nfbeam.l3.l1z     = sim.SynAxis(name='l3z')
+            nfbeam.l3.l1rot   = sim.SynAxis(name='l3rot')
+            nfbeam.l3.l1tx    = sim.SynAxis(name='l3tx')
+            nfbeam.l3.l1tz    = sim.SynAxis(name='l3tz')
+            #   Focus lens 4
+            nfbeam.l4         = MotorBundle(name='l4')
+            nfbeam.l4.l1x     = sim.SynAxis(name='l4x')
+            nfbeam.l4.l1y     = sim.SynAxis(name='l4y')
+            nfbeam.l4.l1z     = sim.SynAxis(name='l4z')
+            nfbeam.l4.l1rot   = sim.SynAxis(name='l4rot')
+            nfbeam.l4.l1tx    = sim.SynAxis(name='l4tx')
+            nfbeam.l4.l1tz    = sim.SynAxis(name='l4tz')
+
+            return nfbeam
+
+    @staticmethod
+    def get_nfstage(mode):
+        """return tomostage based on given mode"""
+        if mode.lower() in ['dryrun', 'production']:
+            nfstage = StageAero(name='nfstage')
+        elif mode.lower() == 'debug':
+            # NOTE:
+            #    Moving a synthetic motor will lead to some really strange
+            #    issue.  This could be related to the API change in the
+            #    synAxis.
+            from ophyd import sim
+            from ophyd import MotorBundle
+            nfstage       = MotorBundle(name="nfstage")
+            nfstage.aero  = sim.SynAxis(name='aero')
+            nfstage.samX  = sim.SynAxis(name='samX')
+            nfstage.ksamX = sim.SynAxis(name='ksamX')
+            nfstage.ksamZ = sim.SynAxis(name='ksamz')
+            nfstage.samY  = sim.SynAxis(name='samY')
+        else:
+            raise ValueError(f"Invalide mode -> {mode}")
+        return tomostage
+
+    @staticmethod
+    def get_flycontrol(mode):
+        if mode.lower() == 'debug':
+            # TODO: need better simulated motors
+            from ophyd import sim
+            psofly = sim.flyer1
+        elif mode.lower() in ['dryrun', 'production']:
+            psofly = EnsemblePSOFlyDevice("PV_FLY", name="psofly")
+        else:
+            raise ValueError(f"Invalide mode, {mode}")
+        return psofly
+
+
+
+
+
+
     
     
     
