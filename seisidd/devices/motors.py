@@ -9,12 +9,12 @@ TODO:
 """
 
 
-from ophyd   import Device
-from ophyd   import MotorBundle
-from ophyd   import Component
-from ophyd   import EpicsMotor
-from ophyd   import EpicsSignal
-from ophyd   import EpicsSignalRO
+from ophyd   import    Device
+from ophyd   import    MotorBundle
+from ophyd   import    Component
+from ophyd   import    EpicsMotor
+from ophyd   import    EpicsSignal
+from ophyd   import    EpicsSignalRO
 
 
 class StageAero(MotorBundle):
@@ -25,7 +25,7 @@ class StageAero(MotorBundle):
         |   fine translation:  kx,ky,kz   |
         |   fine tilt: kx_tilt, kz_tilt   |
         ===================================
-        |   air-bearing rotation: rot     |
+        |    air-bearing rotation: rot    |
         ===================================
         |  coarse translation below Aero: | 
         |     x_base, y_base, z_base      |
@@ -41,11 +41,11 @@ class StageAero(MotorBundle):
     kx_tilt = Component(EpicsMotor, "$TTKX_PV", name='kx_tilt')   # kohzu tilt motion along x
     kz_tilt = Component(EpicsMotor, "$TTKZ_PV", name='kz_tilt')   # kohzu tilt motion along z
 
-    rot     = Component(EpicsMotor, "$ROT_PV", name='rot_y'  )    # rotation with aero stage
+    rot     = Component(EpicsMotor, "$ROT_PV",  name='rot_y'  )    # rotation with aero stage
 
-    x_base  = Component(EpicsMotor, "$TRX_PV", name='x_trans')    # x motion below aero stage
-    y_base  = Component(EpicsMotor, "$TRY_PV", name='y_trans')    # y motion below aero stage
-    z_base  = Component(EpicsMotor, "$TRZ_PV", name='z_trans')    # z motion below aero stage
+    x_base  = Component(EpicsMotor, "$TRX_PV",  name='x_trans')    # x motion below aero stage
+    y_base  = Component(EpicsMotor, "$TRY_PV",  name='y_trans')    # y motion below aero stage
+    z_base  = Component(EpicsMotor, "$TRZ_PV",  name='z_trans')    # z motion below aero stage
 
     @property
     def status(self):
@@ -58,7 +58,7 @@ class StageAero(MotorBundle):
         pass
 
     def cache_position(self):
-        """quickly cache all motor positions"""
+        """cache current motor positions"""
         #   Add other motors if any (i.e. Kohzu tilt)
         # TODO:
         #   We need to consider what to do when cached positions are not the same
@@ -108,8 +108,8 @@ class TaxiFlyScanDevice(Device):
     In a third (optional) phase, data is collected 
     from hardware and written to a file.
     """
-    taxi = Component(EpicsSignal, "taxi", put_complete=True)
-    fly = Component(EpicsSignal, "fly", put_complete=True)
+    taxi    = Component(EpicsSignal, "taxi", put_complete=True)
+    fly     = Component(EpicsSignal, "fly",  put_complete=True)
     
     def plan(self):
         yield from bps.mv(self.taxi, self.taxi.enum_strs[1])
