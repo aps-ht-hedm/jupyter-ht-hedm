@@ -288,8 +288,8 @@ class Tomography(Experiment):
         # the details and fields need to be updated for 6-ID-D
         _x = cfg_tomo['fronte_white_kx'] if atfront else cfg_tomo['back_white_kx']
         _z = cfg_tomo['fronte_white_kz'] if atfront else cfg_tomo['back_white_kz']
-        yield from bps.mv(tomostage.ksamX, _x)  #update with correct motor name
-        yield from bps.mv(tomostage.ksamZ, _z)
+        yield from bps.mv(tomostage.kx, _x)  #update with correct motor name
+        yield from bps.mv(tomostage.kz, _z)
     
         # setup detector
         # TODO:
@@ -710,7 +710,46 @@ class NearField(Experiment):
                 raise ValueError(f"Invalide mode, {mode}")
             return det
 
-
+    # ----- pre-defined scan plans starts from here
+    @bpp.run_decorator()
+    def collect_white_field(self, cfg_nf, atfront=True):
+        """
+        Collect white/flat field images by moving the sample out of the FOV
+        """
+        # unpack devices
+        det = self.nf_det
+        nfstage = self.nf_stage
+    
+        # move sample out of the way
+        # TODO:
+        # the details and fields need to be updated for 6-ID-D
+        _x = cfg_nf['fronte_white_kx'] if atfront else cfg_nf['back_white_kx']
+        _z = cfg_nf['fronte_white_kz'] if atfront else cfg_nf['back_white_kz']
+        yield from bps.mv(tomostage.kx, _x)  #update with correct motor name
+        yield from bps.mv(tomostage.kz, _z)
+    
+        # setup detector
+        # TODO:
+        # actual implementation need to be for 6-ID-D
+        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.reset_filter, 1)
+        yield from bps.mv(det.proc1.num_filter, cfg_nf['n_frames'])
+        yield from bps.mv(det.cam.trigger_mode, "Internal")
+        yield from bps.mv(det.cam.image_mode, "Multiple")
+        yield from bps.mv(det.cam.num_images, cfg_nf['n_frames']*cfg_nf['n_white'])
+        yield from bps.trigger_and_read([det])
+    
+        # move sample back to FOV
+        # NOTE:
+        # not sure is this will work or not...
+        # why are we moving samX with ksamX value???  /JasonZ
+        # TODO:
+        #   need to update all the motor names according to StageAero
+        yield from bps.mv(tomostage.x_base, cfg_nf['initial_kx'])
+        yield from bps.mv(tomostage.z_base, cfg_nf['initial_kz'])
+    
 
 
 
