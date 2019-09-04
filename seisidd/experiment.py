@@ -208,12 +208,19 @@ class Tomography(Experiment):
             #    synAxis.
             from ophyd import sim
             from ophyd import MotorBundle
-            tomostage       = MotorBundle(name="tomostage")
-            tomostage.aero  = sim.SynAxis(name='aero')
-            tomostage.samX  = sim.SynAxis(name='samX')
-            tomostage.ksamX = sim.SynAxis(name='ksamX')
-            tomostage.ksamZ = sim.SynAxis(name='ksamz')
-            tomostage.samY  = sim.SynAxis(name='samY')
+            tomostage         = MotorBundle(name="tomostage")
+            tomostage.kx      = sim.SynAxis(name='kx')
+            tomostage.ky      = sim.SynAxis(name='ky')
+            tomostage.kz      = sim.SynAxis(name='kz')
+            tomostage.kx_tilt = sim.SynAxis(name='kx_tilt')
+            tomostage.kz_tilt = sim.SynAxis(name='kz_tilt')
+
+            tomostage.rot    = sim.SynAxis(name='rot')
+
+            tomostage.x_base  = sim.SynAxis(name='x_base')
+            tomostage.y_base  = sim.SynAxis(name='y_base')
+            tomostage.z_base  = sim.SynAxis(name='z_base')
+
         else:
             raise ValueError(f"Invalide mode -> {mode}")
         return tomostage
@@ -279,8 +286,8 @@ class Tomography(Experiment):
         # move sample out of the way
         # TODO:
         # the details and fields need to be updated for 6-ID-D
-        _x = cfg_tomo['fronte_white_ksamX'] if atfront else cfg_tomo['back_white_ksamX']
-        _z = cfg_tomo['fronte_white_ksamZ'] if atfront else cfg_tomo['back_white_ksamZ']
+        _x = cfg_tomo['fronte_white_kx'] if atfront else cfg_tomo['back_white_kx']
+        _z = cfg_tomo['fronte_white_kz'] if atfront else cfg_tomo['back_white_kz']
         yield from bps.mv(tomostage.ksamX, _x)  #update with correct motor name
         yield from bps.mv(tomostage.ksamZ, _z)
     
@@ -303,8 +310,8 @@ class Tomography(Experiment):
         # why are we moving samX with ksamX value???  /JasonZ
         # TODO:
         #   need to update all the motor names according to StageAero
-        yield from bps.mv(tomostage.samX, cfg_tomo['initial_ksamX'])
-        yield from bps.mv(tomostage.samZ, cfg_tomo['initial_ksamZ'])
+        yield from bps.mv(tomostage.samX, cfg_tomo['initial_kx'])
+        yield from bps.mv(tomostage.samZ, cfg_tomo['initial_kz'])
     
     @bpp.run_decorator()
     def collect_dark_field(self, cfg_tomo):
@@ -464,7 +471,7 @@ class Tomography(Experiment):
             cfg['tomo']['slew_speed'] = slew_speed
         
         # need to make sure that the sample out position is the same for both front and back
-        x0, z0 = tomostage.ksamX.position, tomostage.ksamZ.position
+        x0, z0 = tomostage.kx.position, tomostage.kz.position
         dfx, dfz = cfg['tomo']['sample_out_position']['samX'], cfg['tomo']['sample_out_position']['samZ']
         rotang = np.radians(cfg['tomo']['omega_end']-cfg['tomo']['omega_start'])
         rotm = np.array([[ np.cos(rotang), np.sin(rotang)],
@@ -473,12 +480,12 @@ class Tomography(Experiment):
         dbx = dbxz[0] if abs(dbxz[0]) > 1e-8 else 0.0
         dbz = dbxz[1] if abs(dbxz[1]) > 1e-8 else 0.0
         # now put the value to dict
-        cfg['tomo']['initial_ksamX'] = x0
-        cfg['tomo']['initial_ksamZ'] = z0
-        cfg['tomo']['fronte_white_ksamX'] = x0 + dfx
-        cfg['tomo']['fronte_white_ksamZ'] = z0 + dfz
-        cfg['tomo']['back_white_ksamX'] = x0 + dbx
-        cfg['tomo']['back_white_ksamZ'] = z0 + dbz
+        cfg['tomo']['initial_kx']       = x0
+        cfg['tomo']['initial_kz']       = z0
+        cfg['tomo']['fronte_white_kx']  = x0 + dfx
+        cfg['tomo']['fronte_white_kz']  = z0 + dfz
+        cfg['tomo']['back_white_kx']    = x0 + dbx
+        cfg['tomo']['back_white_kz']    = z0 + dbz
         
         
         @bpp.stage_decorator([det])
@@ -638,15 +645,22 @@ class NearField(Experiment):
             #    synAxis.
             from ophyd import sim
             from ophyd import MotorBundle
-            nfstage       = MotorBundle(name="nfstage")
-            nfstage.aero  = sim.SynAxis(name='aero')
-            nfstage.samX  = sim.SynAxis(name='samX')
-            nfstage.ksamX = sim.SynAxis(name='ksamX')
-            nfstage.ksamZ = sim.SynAxis(name='ksamz')
-            nfstage.samY  = sim.SynAxis(name='samY')
+            nfstage         = MotorBundle(name="tomostage")
+            nfstage.kx      = sim.SynAxis(name='kx')
+            nfstage.ky      = sim.SynAxis(name='ky')
+            nfstage.kz      = sim.SynAxis(name='kz')
+            nfstage.kx_tilt = sim.SynAxis(name='kx_tilt')
+            nfstage.kz_tilt = sim.SynAxis(name='kz_tilt')
+
+            nfstage.rot    = sim.SynAxis(name='rot')
+
+            nfstage.x_base  = sim.SynAxis(name='x_base')
+            nfstage.y_base  = sim.SynAxis(name='y_base')
+            nfstage.z_base  = sim.SynAxis(name='z_base')
+            
         else:
             raise ValueError(f"Invalide mode -> {mode}")
-        return tomostage
+        return nfstage
 
     @staticmethod
     def get_flycontrol(mode):
