@@ -35,7 +35,8 @@ class SlitDownstream(MotorBundle):
     v_bt    =   Component(EpicsMotor, "PV_bottom",                  name='v_bt'     )
     v_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upVsize.VAL",  name='v_size'   )   # vertical size !!!!!need to check this
 
-
+### Per Peter, only motion in the y direction is allowed to avoid accidents
+### consider comment out all the other PV accesses.
 class FocusLens1(MotorBundle):
     """Lens 1 that focuses the beam"""
     # TODO: 
