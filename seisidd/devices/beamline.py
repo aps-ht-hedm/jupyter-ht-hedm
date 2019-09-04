@@ -192,8 +192,8 @@ class Beam:
 
     #   I'm not quite sure if it is safe to do all this here. /JasonZ
     def __init__(self):
-        self.s1      = SlitUpstream()
-        self.s2      = SlitDownstream()
+        self.s1         = SlitUpstream()
+        self.s2         = SlitDownstream()
         self.l1         = FocusLens1()
         self.l2         = FocusLens2()
         self.l3         = FocusLens3()
