@@ -131,9 +131,9 @@ class Tomography(Experiment):
 
     @staticmethod
     def get_tomobeam(mode):
-        """return tomobeam based on given mode"""
+        """return Tomobeam based on given mode"""
         if mode.lower() in ['dryrun', 'production']:
-            tomobeam = Beam()
+            beam = Beam()
         elif mode.lower() == 'debug':
             # NOTE:
             #   This is a place holder for maybe additional control of the beam
@@ -142,57 +142,57 @@ class Tomography(Experiment):
             from ophyd import sim
             from ophyd import MotorBundle
             #   simulated tomobeam motor bundle.  This part need FIX!!!
-            tomobeam            = MotorBundle(name='tomobeam')
+            beam            = MotorBundle(name='beam')
             #   Upstream slit, slit1
-            tomobeam.s1         = MotorBundle(name='s1')
-            tomobeam.s1.h_ib    = sim.SynAxis(name='h_ib')
-            tomobeam.s1.h_ob    = sim.SynAxis(name='h_ob')
-            tomobeam.s1.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            tomobeam.s1.v_tp    = sim.SynAxis(name='v_tp')
-            tomobeam.s1.v_bt    = sim.SynAxis(name='v_bt')
-            tomobeam.s1.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
+            beam.s1         = MotorBundle(name='s1')
+            beam.s1.h_ib    = sim.SynAxis(name='h_ib')
+            beam.s1.h_ob    = sim.SynAxis(name='h_ob')
+            beam.s1.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
+            beam.s1.v_tp    = sim.SynAxis(name='v_tp')
+            beam.s1.v_bt    = sim.SynAxis(name='v_bt')
+            beam.s1.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
             #   Downstream slit, slit2
-            tomobeam.s2         = MotorBundle(name='s2')
-            tomobeam.s2.h_ib    = sim.SynAxis(name='h_ib')
-            tomobeam.s2.h_ob    = sim.SynAxis(name='h_ob')
-            tomobeam.s2.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            tomobeam.s2.v_tp    = sim.SynAxis(name='v_tp')
-            tomobeam.s2.v_bt    = sim.SynAxis(name='v_bt')
-            tomobeam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
+            beam.s2         = MotorBundle(name='s2')
+            beam.s2.h_ib    = sim.SynAxis(name='h_ib')
+            beam.s2.h_ob    = sim.SynAxis(name='h_ob')
+            beam.s2.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
+            beam.s2.v_tp    = sim.SynAxis(name='v_tp')
+            beam.s2.v_bt    = sim.SynAxis(name='v_bt')
+            beam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
             #   Focus lens 1
-            tomobeam.l1         = MotorBundle(name='l1')
-            tomobeam.l1.l1x     = sim.SynAxis(name='l1x')
-            tomobeam.l1.l1y     = sim.SynAxis(name='l1y')
-            tomobeam.l1.l1z     = sim.SynAxis(name='l1z')
-            tomobeam.l1.l1rot   = sim.SynAxis(name='l1rot')
-            tomobeam.l1.l1tx    = sim.SynAxis(name='l1tx')
-            tomobeam.l1.l1tz    = sim.SynAxis(name='l1tz')
+            beam.l1         = MotorBundle(name='l1')
+            beam.l1.l1x     = sim.SynAxis(name='l1x')
+            beam.l1.l1y     = sim.SynAxis(name='l1y')
+            beam.l1.l1z     = sim.SynAxis(name='l1z')
+            beam.l1.l1rot   = sim.SynAxis(name='l1rot')
+            beam.l1.l1tx    = sim.SynAxis(name='l1tx')
+            beam.l1.l1tz    = sim.SynAxis(name='l1tz')
             #   Focus lens 2
-            tomobeam.l2         = MotorBundle(name='l2')
-            tomobeam.l2.l1x     = sim.SynAxis(name='l2x')
-            tomobeam.l2.l1y     = sim.SynAxis(name='l2y')
-            tomobeam.l2.l1z     = sim.SynAxis(name='l2z')
-            tomobeam.l2.l1rot   = sim.SynAxis(name='l2rot')
-            tomobeam.l2.l1tx    = sim.SynAxis(name='l2tx')
-            tomobeam.l2.l1tz    = sim.SynAxis(name='l2tz')
+            beam.l2         = MotorBundle(name='l2')
+            beam.l2.l1x     = sim.SynAxis(name='l2x')
+            beam.l2.l1y     = sim.SynAxis(name='l2y')
+            beam.l2.l1z     = sim.SynAxis(name='l2z')
+            beam.l2.l1rot   = sim.SynAxis(name='l2rot')
+            beam.l2.l1tx    = sim.SynAxis(name='l2tx')
+            beam.l2.l1tz    = sim.SynAxis(name='l2tz')
             #   Focus lens 3
-            tomobeam.l3         = MotorBundle(name='l3')
-            tomobeam.l3.l1x     = sim.SynAxis(name='l3x')
-            tomobeam.l3.l1y     = sim.SynAxis(name='l3y')
-            tomobeam.l3.l1z     = sim.SynAxis(name='l3z')
-            tomobeam.l3.l1rot   = sim.SynAxis(name='l3rot')
-            tomobeam.l3.l1tx    = sim.SynAxis(name='l3tx')
-            tomobeam.l3.l1tz    = sim.SynAxis(name='l3tz')
+            beam.l3         = MotorBundle(name='l3')
+            beam.l3.l1x     = sim.SynAxis(name='l3x')
+            beam.l3.l1y     = sim.SynAxis(name='l3y')
+            beam.l3.l1z     = sim.SynAxis(name='l3z')
+            beam.l3.l1rot   = sim.SynAxis(name='l3rot')
+            beam.l3.l1tx    = sim.SynAxis(name='l3tx')
+            beam.l3.l1tz    = sim.SynAxis(name='l3tz')
             #   Focus lens 4
-            tomobeam.l4         = MotorBundle(name='l4')
-            tomobeam.l4.l1x     = sim.SynAxis(name='l4x')
-            tomobeam.l4.l1y     = sim.SynAxis(name='l4y')
-            tomobeam.l4.l1z     = sim.SynAxis(name='l4z')
-            tomobeam.l4.l1rot   = sim.SynAxis(name='l4rot')
-            tomobeam.l4.l1tx    = sim.SynAxis(name='l4tx')
-            tomobeam.l4.l1tz    = sim.SynAxis(name='l4tz')
+            beam.l4         = MotorBundle(name='l4')
+            beam.l4.l1x     = sim.SynAxis(name='l4x')
+            beam.l4.l1y     = sim.SynAxis(name='l4y')
+            beam.l4.l1z     = sim.SynAxis(name='l4z')
+            beam.l4.l1rot   = sim.SynAxis(name='l4rot')
+            beam.l4.l1tx    = sim.SynAxis(name='l4tx')
+            beam.l4.l1tz    = sim.SynAxis(name='l4tz')
 
-            return tomobeam
+            return beam
 
 
 
@@ -318,6 +318,8 @@ class Tomography(Experiment):
         """
         Collect dark field images by close the shutter
         """
+        # TODO:
+        #   Need to toggle Fast shutter
         det = self.tomo_det
     
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
@@ -397,7 +399,7 @@ class Tomography(Experiment):
         tomostage           = self.tomo_stage
         shutter             = self.shutter
         shutter_suspender   = self.suspend_shutter
-        tomobeam            = self.tomo_beam
+        beam            = self.tomo_beam
         
         # load experiment configurations
         cfg = load_config(cfg) if type(cfg) != dict else cfg
@@ -442,19 +444,19 @@ class Tomography(Experiment):
         #   epics_put("1ide1:Kohzu_E_dnVsize.VAL", ($2)+0.1, 10) ##
         _beam_h_size    =   cfg['tomo']['beamsize_h']
         _beam_v_size    =   cfg['tomo']['beamsize_v']
-        yield from bps.mv(tomobeam.s1.h_size, _beam_h_size          )
-        yield from bps.mv(tomobeam.s1.v_size, _beam_v_size          )
-        yield from bps.mv(tomobeam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
-        yield from bps.mv(tomobeam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
+        yield from bps.mv(beam.s1.h_size, _beam_h_size          )
+        yield from bps.mv(beam.s1.v_size, _beam_v_size          )
+        yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
+        yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
 
         # set attenuation
         _attenuation = cfg['tomo']['attenuation']
-        yield from bps.mv(tomobeam.att.att_level, _attenuation)
+        yield from bps.mv(beam.att.att_level, _attenuation)
 
         # check energy
         # need to be clear what we want to do here
         _energy_foil = cfg['tomo']['energyfoil']
-        yield from bps.mv(tomobeam.foil, _energy_foil)      # need to complete this part in beamline.py
+        yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
 
         # TODO:
         #   set up FS controls
@@ -570,9 +572,9 @@ class NearField(Experiment):
     
     @staticmethod
     def get_nfbeam(mode):
-        """return tomobeam based on given mode"""
+        """return NFbeam based on given mode"""
         if mode.lower() in ['dryrun', 'production']:
-            nfbeam = Beam()
+            beam = Beam()
         elif mode.lower() == 'debug':
             # NOTE:
             #   This is a place holder for maybe additional control of the beam
@@ -580,58 +582,58 @@ class NearField(Experiment):
             #   Or, we just use some simulated motors for the beam here as below?
             from ophyd import sim
             from ophyd import MotorBundle
-            #   simulated tomobeam motor bundle.  This part need FIX!!!
-            nfbeam            = MotorBundle(name='nfbeam')
+            #   simulated nfbeam motor bundle.  This part need FIX!!!
+            beam            = MotorBundle(name='beam')
             #   Upstream slit, slit1
-            nfbeam.s1         = MotorBundle(name='s1')
-            nfbeam.s1.h_ib    = sim.SynAxis(name='h_ib')
-            nfbeam.s1.h_ob    = sim.SynAxis(name='h_ob')
-            nfbeam.s1.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            nfbeam.s1.v_tp    = sim.SynAxis(name='v_tp')
-            nfbeam.s1.v_bt    = sim.SynAxis(name='v_bt')
-            nfbeam.s1.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
+            beam.s1         = MotorBundle(name='s1')
+            beam.s1.h_ib    = sim.SynAxis(name='h_ib')
+            beam.s1.h_ob    = sim.SynAxis(name='h_ob')
+            beam.s1.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
+            beam.s1.v_tp    = sim.SynAxis(name='v_tp')
+            beam.s1.v_bt    = sim.SynAxis(name='v_bt')
+            beam.s1.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
             #   Downstream slit, slit2
-            nfbeam.s2         = MotorBundle(name='s2')
-            nfbeam.s2.h_ib    = sim.SynAxis(name='h_ib')
-            nfbeam.s2.h_ob    = sim.SynAxis(name='h_ob')
-            nfbeam.s2.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            nfbeam.s2.v_tp    = sim.SynAxis(name='v_tp')
-            nfbeam.s2.v_bt    = sim.SynAxis(name='v_bt')
-            nfbeam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
+            beam.s2         = MotorBundle(name='s2')
+            beam.s2.h_ib    = sim.SynAxis(name='h_ib')
+            beam.s2.h_ob    = sim.SynAxis(name='h_ob')
+            beam.s2.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
+            beam.s2.v_tp    = sim.SynAxis(name='v_tp')
+            beam.s2.v_bt    = sim.SynAxis(name='v_bt')
+            beam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
             #   Focus lens 1
-            nfbeam.l1         = MotorBundle(name='l1')
-            nfbeam.l1.l1x     = sim.SynAxis(name='l1x')
-            nfbeam.l1.l1y     = sim.SynAxis(name='l1y')
-            nfbeam.l1.l1z     = sim.SynAxis(name='l1z')
-            nfbeam.l1.l1rot   = sim.SynAxis(name='l1rot')
-            nfbeam.l1.l1tx    = sim.SynAxis(name='l1tx')
-            nfbeam.l1.l1tz    = sim.SynAxis(name='l1tz')
+            beam.l1         = MotorBundle(name='l1')
+            beam.l1.l1x     = sim.SynAxis(name='l1x')
+            beam.l1.l1y     = sim.SynAxis(name='l1y')
+            beam.l1.l1z     = sim.SynAxis(name='l1z')
+            beam.l1.l1rot   = sim.SynAxis(name='l1rot')
+            beam.l1.l1tx    = sim.SynAxis(name='l1tx')
+            beam.l1.l1tz    = sim.SynAxis(name='l1tz')
             #   Focus lens 2
-            nfbeam.l2         = MotorBundle(name='l2')
-            nfbeam.l2.l1x     = sim.SynAxis(name='l2x')
-            nfbeam.l2.l1y     = sim.SynAxis(name='l2y')
-            nfbeam.l2.l1z     = sim.SynAxis(name='l2z')
-            nfbeam.l2.l1rot   = sim.SynAxis(name='l2rot')
-            nfbeam.l2.l1tx    = sim.SynAxis(name='l2tx')
-            nfbeam.l2.l1tz    = sim.SynAxis(name='l2tz')
+            beam.l2         = MotorBundle(name='l2')
+            beam.l2.l1x     = sim.SynAxis(name='l2x')
+            beam.l2.l1y     = sim.SynAxis(name='l2y')
+            beam.l2.l1z     = sim.SynAxis(name='l2z')
+            beam.l2.l1rot   = sim.SynAxis(name='l2rot')
+            beam.l2.l1tx    = sim.SynAxis(name='l2tx')
+            beam.l2.l1tz    = sim.SynAxis(name='l2tz')
             #   Focus lens 3
-            nfbeam.l3         = MotorBundle(name='l3')
-            nfbeam.l3.l1x     = sim.SynAxis(name='l3x')
-            nfbeam.l3.l1y     = sim.SynAxis(name='l3y')
-            nfbeam.l3.l1z     = sim.SynAxis(name='l3z')
-            nfbeam.l3.l1rot   = sim.SynAxis(name='l3rot')
-            nfbeam.l3.l1tx    = sim.SynAxis(name='l3tx')
-            nfbeam.l3.l1tz    = sim.SynAxis(name='l3tz')
+            beam.l3         = MotorBundle(name='l3')
+            beam.l3.l1x     = sim.SynAxis(name='l3x')
+            beam.l3.l1y     = sim.SynAxis(name='l3y')
+            beam.l3.l1z     = sim.SynAxis(name='l3z')
+            beam.l3.l1rot   = sim.SynAxis(name='l3rot')
+            beam.l3.l1tx    = sim.SynAxis(name='l3tx')
+            beam.l3.l1tz    = sim.SynAxis(name='l3tz')
             #   Focus lens 4
-            nfbeam.l4         = MotorBundle(name='l4')
-            nfbeam.l4.l1x     = sim.SynAxis(name='l4x')
-            nfbeam.l4.l1y     = sim.SynAxis(name='l4y')
-            nfbeam.l4.l1z     = sim.SynAxis(name='l4z')
-            nfbeam.l4.l1rot   = sim.SynAxis(name='l4rot')
-            nfbeam.l4.l1tx    = sim.SynAxis(name='l4tx')
-            nfbeam.l4.l1tz    = sim.SynAxis(name='l4tz')
+            beam.l4         = MotorBundle(name='l4')
+            beam.l4.l1x     = sim.SynAxis(name='l4x')
+            beam.l4.l1y     = sim.SynAxis(name='l4y')
+            beam.l4.l1z     = sim.SynAxis(name='l4z')
+            beam.l4.l1rot   = sim.SynAxis(name='l4rot')
+            beam.l4.l1tx    = sim.SynAxis(name='l4tx')
+            beam.l4.l1tz    = sim.SynAxis(name='l4tz')
 
-            return nfbeam
+            return beam
 
     @staticmethod
     def get_nfstage(mode):
@@ -675,62 +677,51 @@ class NearField(Experiment):
         return psofly
 
     @staticmethod
-        def get_detector(mode):
-            if mode.lower() == 'debug':
-                # TODO: need better simulated detectors
-                from ophyd import sim
-                det = sim.noisy_det
-            elif mode.lower() in ['dryrun', 'production']:
-                det = PointGreyDetector6IDD("PV_DET", name='det')
-                # check the following page for important information
-                # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
-                #
-                epics.caput("PV_DET:cam1:FrameType.ZRST", "/exchange/data_white_pre")
-                epics.caput("PV_DET:cam1:FrameType.ONST", "/exchange/data")
-                epics.caput("PV_DET:cam1:FrameType.TWST", "/exchange/data_white_post")
-                epics.caput("PV_DET:cam1:FrameType.THST", "/exchange/data_dark")
-                # ophyd need this configuration
-                epics.caput("PV_DET:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
-                epics.caput("PV_DET:cam1:FrameType_RBV.ONST", "/exchange/data")
-                epics.caput("PV_DET:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
-                epics.caput("PV_DET:cam1:FrameType_RBV.THST", "/exchange/data_dark")
-                # set the layout file for cam
-                # TODO:  need to udpate with acutal config files for 6-ID-D
-                _current_fp = str(pathlib.Path(__file__).parent.absolute())
-                _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
-                _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
-                det.cam.nd_attributes_file.put(_attrib_fp)
-                det.hdf1.xml_file_name.put(_layout_fp)
-                # turn off the problematic auto setting in cam
-                det.cam.auto_exposure_auto_mode.put(0)  
-                det.cam.sharpness_auto_mode.put(0)
-                det.cam.gain_auto_mode.put(0)
-                det.cam.frame_rate_auto_mode.put(0)
-            else:
-                raise ValueError(f"Invalide mode, {mode}")
-            return det
+    def get_detector(mode):
+        if mode.lower() == 'debug':
+            # TODO: need better simulated detectors
+            from ophyd import sim
+            det = sim.noisy_det
+        elif mode.lower() in ['dryrun', 'production']:
+            det = PointGreyDetector6IDD("PV_DET", name='det')
+            # check the following page for important information
+            # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
+            #
+            epics.caput("PV_DET:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("PV_DET:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("PV_DET:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("PV_DET:cam1:FrameType.THST", "/exchange/data_dark")
+            # ophyd need this configuration
+            epics.caput("PV_DET:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("PV_DET:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("PV_DET:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("PV_DET:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            # set the layout file for cam
+            # TODO:  need to udpate with acutal config files for 6-ID-D
+            _current_fp = str(pathlib.Path(__file__).parent.absolute())
+            _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+            _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.hdf1.xml_file_name.put(_layout_fp)
+            # turn off the problematic auto setting in cam
+            det.cam.auto_exposure_auto_mode.put(0)  
+            det.cam.sharpness_auto_mode.put(0)
+            det.cam.gain_auto_mode.put(0)
+            det.cam.frame_rate_auto_mode.put(0)
+        else:
+            raise ValueError(f"Invalide mode, {mode}")
+        return det
 
     # ----- pre-defined scan plans starts from here
     @bpp.run_decorator()
-    def collect_white_field(self, cfg_nf, atfront=True):
+    def collect_dark_field(self, cfg_nf):
         """
-        Collect white/flat field images by moving the sample out of the FOV
+        Collect dark field images using fastshutter
         """
-        # unpack devices
+        # TODO:
+        #   Need to toggle Fast shutter
         det = self.nf_det
-        nfstage = self.nf_stage
     
-        # move sample out of the way
-        # TODO:
-        # the details and fields need to be updated for 6-ID-D
-        _x = cfg_nf['fronte_white_kx'] if atfront else cfg_nf['back_white_kx']
-        _z = cfg_nf['fronte_white_kz'] if atfront else cfg_nf['back_white_kz']
-        yield from bps.mv(tomostage.kx, _x)  #update with correct motor name
-        yield from bps.mv(tomostage.kz, _z)
-    
-        # setup detector
-        # TODO:
-        # actual implementation need to be for 6-ID-D
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
         yield from bps.mv(det.proc1.enable, 1)
@@ -738,19 +729,64 @@ class NearField(Experiment):
         yield from bps.mv(det.proc1.num_filter, cfg_nf['n_frames'])
         yield from bps.mv(det.cam.trigger_mode, "Internal")
         yield from bps.mv(det.cam.image_mode, "Multiple")
-        yield from bps.mv(det.cam.num_images, cfg_nf['n_frames']*cfg_nf['n_white'])
+        yield from bps.mv(det.cam.num_images, cfg_nf['n_frames']*cfg_nf['n_dark'])
         yield from bps.trigger_and_read([det])
-    
-        # move sample back to FOV
-        # NOTE:
-        # not sure is this will work or not...
-        # why are we moving samX with ksamX value???  /JasonZ
-        # TODO:
-        #   need to update all the motor names according to StageAero
-        yield from bps.mv(tomostage.x_base, cfg_nf['initial_kx'])
-        yield from bps.mv(tomostage.z_base, cfg_nf['initial_kz'])
-    
 
+    @bpp.run_decorator()
+    def fly_scan(self, cfg_nf):
+        """
+        Collect projections with fly motion
+        """
+        det = self.nf_det
+        psofly = self.fly_control
+        
+        # TODO:
+        #   Need to set up FS control for the scan
+        #   During fly scan, the FS is always open
+
+        # TODO:
+        #   The fields need to be updated for 6-ID-D
+        yield from bps.mv(det.hdf1.nd_array_port, 'PG1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PG1')
+    
+        # we are assuming that the global psofly is available
+        yield from bps.mv(
+            psofly.start,           cfg_nf['omega_start'],
+            psofly.end,             cfg_nf['omega_end'],
+            psofly.scan_delta,      abs(cfg_nf['omega_step']),
+            psofly.slew_speed,      cfg_nf['slew_speed'],
+        )
+        # taxi
+        yield from bps.mv(psofly.taxi, "Taxi")
+        yield from bps.mv(
+            det.cam.num_images, cfg_nf['n_projections'],
+            det.cam.trigger_mode, "Overlapped",
+        )
+        # start the fly scan
+        yield from bps.trigger(det, group='fly')
+        yield from bps.abs_set(psofly.fly, "Fly", group='fly')
+        yield from bps.wait(group='fly')
+
+    def nf_scan(self, cfg):
+        """
+        NearField scan plan based on given configuration
+        """
+        # unpack devices
+        det                 = self.nf_det
+        tomostage           = self.nf_stage
+        shutter             = self.shutter
+        shutter_suspender   = self.suspend_shutter
+        beam                = self.nf_beam
+        
+        # load experiment configurations
+        cfg = load_config(cfg) if type(cfg) != dict else cfg
+        
+        # TODO:
+        # the following needs to be updated for 6-ID-D
+
+        # update the cached motor position in the dict in case exp goes wrong
+        _cahed_position = self.nf_stage.cache_position()
+    
 
 
 
