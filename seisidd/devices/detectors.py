@@ -12,21 +12,43 @@ NOTE:
 from ophyd   import AreaDetector
 from ophyd   import SingleTrigger, EpicsSignalWithRBV
 from ophyd   import ADComponent
-from ophyd   import CamBase, DexelaDetectorCam
+from ophyd   import CamBase, DexelaDetectorCam, PointGreyDetectorCam
 from ophyd   import ProcessPlugin
 from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
 
 
-class PointGreyDetectorCam(CamBase):
+class HDF5Plugin6IDD(HDF5Plugin):
+    """AD HDF5 plugin customizations (properties)"""
+    xml_file_name = ADComponent(EpicsSignalWithRBV, "XMLFileName")
+
+
+class RetigaDetectorCam(CamBase):
     """PointGrey camera """
     # NOTE:
     # Different camera module from different manufacture requires different
     # configuration, see 
     #  https://github.com/bluesky/ophyd/blob/master/ophyd/areadetector/cam.py
     # for more examples on how to make the PointGrey cam
-    
-    # Here I'm copying the 6BM script
+    pass
+
+class RetigaDetectorCam6IDD(RetigaDetectorCam):
+    """Retiga detector camera module"""
+    # TODO:
+    #   We will do this if we have to....
+    #   Please, please, please don't purchase this
+    pass
+
+class DexelaDetectorCam6IDD(DexelaDetectorCam):
+    """Dexela detector camera module"""
+    # TODO:
+    #   Missing features from the default settings need to be added here
+    #   Check with Jun at the end of Oct for the new Dexela info
+    pass
+
+
+class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
+    """PointGrey Grasshopper3 cam plugin customizations (properties)"""
     auto_exposure_on_off    = ADComponent(EpicsSignalWithRBV, "AutoExposureOnOff")
     auto_exposure_auto_mode = ADComponent(EpicsSignalWithRBV, "AutoExposureAutoMode")
     sharpness_on_off        = ADComponent(EpicsSignalWithRBV, "SharpnessOnOff")
@@ -39,25 +61,11 @@ class PointGreyDetectorCam(CamBase):
     trigger_delay_on_off    = ADComponent(EpicsSignalWithRBV, "TriggerDelayOnOff")
     frame_rate_on_off       = ADComponent(EpicsSignalWithRBV, "FrameRateOnOff")
     frame_rate_auto_mode    = ADComponent(EpicsSignalWithRBV, "FrameRateAutoMode")
-    pass
-
-
-class DexelaDetectorCam6IDD(DexelaDetectorCam):
-    """Dexela detector camera module"""
-    # TODO:
-    #   Missing features from the default settings need to be added here
-    pass
-
-
-class HDF5Plugin6IDD(HDF5Plugin):
-    """AD HDF5 plugin customizations (properties)"""
-    xml_file_name = ADComponent(EpicsSignalWithRBV, "XMLFileName")
-        
 
 class PointGreyDetector(SingleTrigger, AreaDetector):
     """PointGrey Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
 
-    cam   = ADComponent(PointGreyDetectorCam, suffix="cam1:" )  # camera
+    cam   = ADComponent(PointGreyDetectorCam6IDD, suffix="cam1:" )  # camera
     proc1 = ADComponent(ProcessPlugin,     suffix="Proc1:")  # processing
     tiff1 = ADComponent(TIFFPlugin,        suffix="TIFF1:")  # tiff output
     hdf1  = ADComponent(HDF5Plugin6IDD,    suffix="HDF1:" )  # HDF5 output
