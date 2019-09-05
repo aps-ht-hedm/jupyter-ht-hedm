@@ -22,8 +22,8 @@ tomo:
   n_dark:  5             # num of dark field images after tomo
   sample_out_position:    # !!relative to the current position!! 
                           # which motors are we using? kx or x_base?
-    x_base:  -1             # mm (relative position to initial position)
-    z_base:   0             # mm (relative position to initial position)
+    kx:  -1             # mm (relative position to initial position)
+    kz:   0             # mm (relative position to initial position)
   acquire_time:   0.10    # sec
   acquire_period: 0.11    # sec, acquire_time+0.01, (not being used in fly)
   omega_step:     0.2     # degree
@@ -46,14 +46,14 @@ nf:
   type:    fly           # always fly for NF
   sample_out_position:    # !!relative to the current position!! 
                           # which motors are we using? kx or x_base?
-    x_base:   -1            # mm (relative position to initial position)
-    z_base:   0             # mm (relative position to initial position)
+    kx:   -1            # mm (relative position to initial position)
+    kz:   0             # mm (relative position to initial position)
   detector_z_position:    # The two detector z positions for NF
     nf_z1:    7     
     nf_z2:    10      
   volume:                 # NF scan volume
     ky_start:   2.5       # ky position of first NF layer
-    ky_step:    0.5       # step between layers, can be negative
+    ky_step:    0.5       # step between layers, can be negative, set to 0 to repeat the current layer for n_layer times
     n_layers:   10        # total number of layers to be done
   acquire_time:   0.10    # sec
   omega_step:     0.2     # degree
@@ -66,12 +66,24 @@ nf:
   readout_time:  0.001    # detector readout time
 
 ff:
+  ## Beamline optics
   energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
   attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
   FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
   beamsize_h:   0.5       # horizontal beam size
   beamsize_v:   0.5       # vertical beam size
+  ## Scan parameters
   type:    fly           # [step|fly]
+  sample_out_position:    # !!relative to the current position!! 
+                          # which motors are we using? kx or x_base?
+    kx:   -1            # mm (relative position to initial position)
+    kz:   0             # mm (relative position to initial position)
+  detector_z_position:    # We need to think about which detector distance to use here (actual/motor)
+    ff_z1:    7         
+  volume:                 # NF scan volume
+    ky_start:   2.5       # ky position of first NF layer
+    ky_step:    0.5       # step between layers, can be negative, set to 0 to repeat the current layer for n_layer times
+    n_layers:   10        # total number of layers to be done
   n_dark:  5             # num of dark field images after ff
   acquire_time:   0.10    # sec
   acquire_period: 0.11    # sec, acquire_time+0.01, (not being used in fly)
