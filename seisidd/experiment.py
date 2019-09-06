@@ -401,14 +401,10 @@ class Tomography(Experiment):
         tomostage           = self.tomo_stage
         shutter             = self.shutter
         shutter_suspender   = self.suspend_shutter
-        beam            = self.tomo_beam
+        beam                = self.tomo_beam
         
         # load experiment configurations
         cfg = load_config(cfg) if type(cfg) != dict else cfg
-
-        # TODO:
-        #   Add a check here to verify the (changes in the) cfg file
-        #   Ask for input?
         
         # TODO:
         # the following needs to be updated for 6-ID-D
