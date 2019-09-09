@@ -228,6 +228,7 @@ class Tomography(Experiment):
 
     @staticmethod
     def get_flycontrol(mode):
+        # We may have a different version of psofly
         if mode.lower() == 'debug':
             # TODO: need better simulated motors
             from ophyd import sim
@@ -309,11 +310,10 @@ class Tomography(Experiment):
         # move sample back to FOV
         # NOTE:
         # not sure is this will work or not...
-        # why are we moving samX with ksamX value???  /JasonZ
         # TODO:
         #   need to update all the motor names according to StageAero
-        yield from bps.mv(tomostage.samX, cfg_tomo['initial_kx'])
-        yield from bps.mv(tomostage.samZ, cfg_tomo['initial_kz'])
+        yield from bps.mv(tomostage.kx, cfg_tomo['initial_kx'])
+        yield from bps.mv(tomostage.kz, cfg_tomo['initial_kz'])
     
     @bpp.run_decorator()
     def collect_dark_field(self, cfg_tomo):
