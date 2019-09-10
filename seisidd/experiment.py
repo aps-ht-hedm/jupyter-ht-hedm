@@ -774,7 +774,7 @@ class NearField(Experiment):
             yield from bps.mv(me.file_path, fp)
             yield from bps.mv(me.file_name, '{}_layer{:06d}'.format(fn, _layer_number))
             yield from bps.mv(me.file_write_mode, 2)
-            yield from bps.mv(me.num_capture, cfg['nf'['total_images']*2)       # *2 for two det positions
+            yield from bps.mv(me.num_capture, cfg['nf']['total_images']*2)       # *2 for two det positions
             yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
 
         if cfg['output']['type'] in ['tif', 'tiff']:
