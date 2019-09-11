@@ -43,7 +43,7 @@ tomo:
   ROT_STAGE_FAST_SPEED:       1   # degree/second,
   accl:                       3   # second,
   readout_time:  0.001    # detector readout time
-
+                          # consider using camera name for this if the readout time is standard for each camera
 
 
 nf:
