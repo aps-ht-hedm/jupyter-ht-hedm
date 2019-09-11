@@ -114,6 +114,8 @@ ff:
 
 output:  # we should include the output in each experiment (i.e. tomo, NF, FF)       
 #  filepath:    '/home/beams/S6BM/user_data/2019-2/startup_jun19/tomo/'    # use testing location
+  # We could extract the file path from the proposal as well
+  # Consider autofill the path if that works.
   filepath:    '/dev/shm/tmp/'    # use testing location
   fileprefix:  'ttt'       # specify file name
   type:        'hdf'       # [tiff|tif, hdf|hdf1|hdf5]
