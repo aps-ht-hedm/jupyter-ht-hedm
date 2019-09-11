@@ -110,6 +110,18 @@ class Tomography(Experiment):
     
     def __repr__(self):
         """Return summary of the current experiment status"""
+        beam = self.tomo_beam
+        # get the current beamline optics
+        # TODO: need to figure out how to get the beam energy
+        _beamline_status = f"Current Beam Size is:   {beam.s1.h_size}x{beam.s1.v_size} (HxV) \n"
+                           f"Current Attenuation is: {beam.att_level}                        \n"
+                           f"Current Beam Energy is: {beam.energy}                           \n"   
+                           f"Current Focus Lenses Positions: l1y @ {%dbeam.l1.l1y}           \n"    
+                           f"                                l2y @ {%dbeam.l2.l2y}          \n"    
+                           f"                                l3y @ {%dbeam.l3.l3y}           \n"    
+                           f"                                l4y @ {%dbeam.l4.l4y}           \n"         
+        # get the current experiment config setting
+        _current_cfg = ",".join(("\n{} = {}".format(*i) for i in cfg['tomo'].items())) 
         # TODO:
         #   verbose string representation of the experiment and beamline
         #   status as a dictionary -> yaml
