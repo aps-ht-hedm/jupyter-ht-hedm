@@ -284,7 +284,7 @@ class EnergyFoil:
     pass
 
 
-#   May not need this
+#   Check to see how the counter performed.
 class Counter:
     """Counter"""
     pass
