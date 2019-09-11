@@ -42,12 +42,12 @@ class FocusLens1(MotorBundle):
     # TODO: 
     # Need to figure out the actual set up and motor PVs
     # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
-    l1x     =   Component(EpicsMotor, "PV_lens1_x",         name='l1x'      )
+    # l1x     =   Component(EpicsMotor, "PV_lens1_x",         name='l1x'      )
     l1y     =   Component(EpicsMotor, "PV_lens1_y",         name='l1y'      )   
-    l1z     =   Component(EpicsMotor, "PV_lens1_z",         name='l1z'      )
-    l1rot   =   Component(EpicsMotor, "PV_lens1_rot",       name='l1rot'    )
-    l1tx    =   Component(EpicsMotor, "PV_lens1_tiltx",     name='l1tx'     )
-    l1tz    =   Component(EpicsMotor, "PV_lens1_tiltz",     name='l1tz'     )
+    # l1z     =   Component(EpicsMotor, "PV_lens1_z",         name='l1z'      )
+    # l1rot   =   Component(EpicsMotor, "PV_lens1_rot",       name='l1rot'    )
+    # l1tx    =   Component(EpicsMotor, "PV_lens1_tiltx",     name='l1tx'     )
+    # l1tz    =   Component(EpicsMotor, "PV_lens1_tiltz",     name='l1tz'     )
 
 
 class FocusLens2(MotorBundle):
@@ -55,12 +55,12 @@ class FocusLens2(MotorBundle):
     # TODO: 
     # Need to figure out the actual set up and motor PVs
     # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
-    l2x     =   Component(EpicsMotor, "PV_lens2_x",         name='l2x'      )
+    # l2x     =   Component(EpicsMotor, "PV_lens2_x",         name='l2x'      )
     l2y     =   Component(EpicsMotor, "PV_lens2_y",         name='l2y'      )   
-    l2z     =   Component(EpicsMotor, "PV_lens2_z",         name='l2z'      )
-    l2rot   =   Component(EpicsMotor, "PV_lens2_rot",       name='l2rot'    )
-    l2tx    =   Component(EpicsMotor, "PV_lens2_tiltx",     name='l2tx'     )
-    l2tz    =   Component(EpicsMotor, "PV_lens2_tiltz",     name='l2tz'     )
+    # l2z     =   Component(EpicsMotor, "PV_lens2_z",         name='l2z'      )
+    # l2rot   =   Component(EpicsMotor, "PV_lens2_rot",       name='l2rot'    )
+    # l2tx    =   Component(EpicsMotor, "PV_lens2_tiltx",     name='l2tx'     )
+    # l2tz    =   Component(EpicsMotor, "PV_lens2_tiltz",     name='l2tz'     )
 
 
 class FocusLens3(MotorBundle):
@@ -68,12 +68,12 @@ class FocusLens3(MotorBundle):
     # TODO: 
     # Need to figure out the actual set up and motor PVs
     # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
-    l3x     =   Component(EpicsMotor, "PV_lens3_x",         name='l3x'      )
+    # l3x     =   Component(EpicsMotor, "PV_lens3_x",         name='l3x'      )
     l3y     =   Component(EpicsMotor, "PV_lens3_y",         name='l3y'      )   
-    l3z     =   Component(EpicsMotor, "PV_lens3_z",         name='l3z'      )
-    l3rot   =   Component(EpicsMotor, "PV_lens3_rot",       name='l3rot'    )
-    l3tx    =   Component(EpicsMotor, "PV_lens3_tiltx",     name='l3tx'     )
-    l3tz    =   Component(EpicsMotor, "PV_lens3_tiltz",     name='l3tz'     )
+    # l3z     =   Component(EpicsMotor, "PV_lens3_z",         name='l3z'      )
+    # l3rot   =   Component(EpicsMotor, "PV_lens3_rot",       name='l3rot'    )
+    # l3tx    =   Component(EpicsMotor, "PV_lens3_tiltx",     name='l3tx'     )
+    # l3tz    =   Component(EpicsMotor, "PV_lens3_tiltz",     name='l3tz'     )
 
 
 class FocusLens4(MotorBundle):
@@ -81,13 +81,12 @@ class FocusLens4(MotorBundle):
     # TODO: 
     # Need to figure out the actual set up and motor PVs
     # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
-    l4x     =   Component(EpicsMotor, "PV_lens4_x",         name='l4x'      )
+    # l4x     =   Component(EpicsMotor, "PV_lens4_x",         name='l4x'      )
     l4y     =   Component(EpicsMotor, "PV_lens4_y",         name='l4y'      )   
-    l4z     =   Component(EpicsMotor, "PV_lens4_z",         name='l4z'      )
-    l4rot   =   Component(EpicsMotor, "PV_lens4_rot",       name='l4rot'    )
-    l4tx    =   Component(EpicsMotor, "PV_lens4_tiltx",     name='l4tx'     )
-    l4tz    =   Component(EpicsMotor, "PV_lens4_tiltz",     name='l4tz'     )
-
+    # l4z     =   Component(EpicsMotor, "PV_lens4_z",         name='l4z'      )
+    # l4rot   =   Component(EpicsMotor, "PV_lens4_rot",       name='l4rot'    )
+    # l4tx    =   Component(EpicsMotor, "PV_lens4_tiltx",     name='l4tx'     )
+    # l4tz    =   Component(EpicsMotor, "PV_lens4_tiltz",     name='l4tz'     )
 
 
 class Attenuator:
@@ -195,6 +194,8 @@ class Beam:
     def __init__(self):
         self.s1         = SlitUpstream()
         self.s2         = SlitDownstream()
+        # consider only get the y motors
+        # self.l1y = Component(EpicsMotor, "PV_lens1_y",         name='l1y'      )
         self.l1         = FocusLens1()
         self.l2         = FocusLens2()
         self.l3         = FocusLens3()
