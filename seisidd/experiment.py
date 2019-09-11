@@ -162,36 +162,36 @@ class Tomography(Experiment):
             beam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
             #   Focus lens 1
             beam.l1         = MotorBundle(name='l1')
-            beam.l1.l1x     = sim.SynAxis(name='l1x')
+            # beam.l1.l1x     = sim.SynAxis(name='l1x')
             beam.l1.l1y     = sim.SynAxis(name='l1y')
-            beam.l1.l1z     = sim.SynAxis(name='l1z')
-            beam.l1.l1rot   = sim.SynAxis(name='l1rot')
-            beam.l1.l1tx    = sim.SynAxis(name='l1tx')
-            beam.l1.l1tz    = sim.SynAxis(name='l1tz')
+            # beam.l1.l1z     = sim.SynAxis(name='l1z')
+            # beam.l1.l1rot   = sim.SynAxis(name='l1rot')
+            # beam.l1.l1tx    = sim.SynAxis(name='l1tx')
+            # beam.l1.l1tz    = sim.SynAxis(name='l1tz')
             #   Focus lens 2
             beam.l2         = MotorBundle(name='l2')
-            beam.l2.l1x     = sim.SynAxis(name='l2x')
+            # beam.l2.l1x     = sim.SynAxis(name='l2x')
             beam.l2.l1y     = sim.SynAxis(name='l2y')
-            beam.l2.l1z     = sim.SynAxis(name='l2z')
-            beam.l2.l1rot   = sim.SynAxis(name='l2rot')
-            beam.l2.l1tx    = sim.SynAxis(name='l2tx')
-            beam.l2.l1tz    = sim.SynAxis(name='l2tz')
+            # beam.l2.l1z     = sim.SynAxis(name='l2z')
+            # beam.l2.l1rot   = sim.SynAxis(name='l2rot')
+            # beam.l2.l1tx    = sim.SynAxis(name='l2tx')
+            # beam.l2.l1tz    = sim.SynAxis(name='l2tz')
             #   Focus lens 3
             beam.l3         = MotorBundle(name='l3')
-            beam.l3.l1x     = sim.SynAxis(name='l3x')
+            # beam.l3.l1x     = sim.SynAxis(name='l3x')
             beam.l3.l1y     = sim.SynAxis(name='l3y')
-            beam.l3.l1z     = sim.SynAxis(name='l3z')
-            beam.l3.l1rot   = sim.SynAxis(name='l3rot')
-            beam.l3.l1tx    = sim.SynAxis(name='l3tx')
-            beam.l3.l1tz    = sim.SynAxis(name='l3tz')
+            # beam.l3.l1z     = sim.SynAxis(name='l3z')
+            # beam.l3.l1rot   = sim.SynAxis(name='l3rot')
+            # beam.l3.l1tx    = sim.SynAxis(name='l3tx')
+            # beam.l3.l1tz    = sim.SynAxis(name='l3tz')
             #   Focus lens 4
             beam.l4         = MotorBundle(name='l4')
-            beam.l4.l1x     = sim.SynAxis(name='l4x')
+            # beam.l4.l1x     = sim.SynAxis(name='l4x')
             beam.l4.l1y     = sim.SynAxis(name='l4y')
-            beam.l4.l1z     = sim.SynAxis(name='l4z')
-            beam.l4.l1rot   = sim.SynAxis(name='l4rot')
-            beam.l4.l1tx    = sim.SynAxis(name='l4tx')
-            beam.l4.l1tz    = sim.SynAxis(name='l4tz')
+            # beam.l4.l1z     = sim.SynAxis(name='l4z')
+            # beam.l4.l1rot   = sim.SynAxis(name='l4rot')
+            # beam.l4.l1tx    = sim.SynAxis(name='l4tx')
+            # beam.l4.l1tz    = sim.SynAxis(name='l4tz')
 
             return beam
 
@@ -443,21 +443,34 @@ class Tomography(Experiment):
         #   epics_put("1ide1:Kohzu_E_dnHsize.VAL", (($1)+0.1), 10) ##
         #   epics_put("1ide1:Kohzu_E_upVsize.VAL", ($2), 10) ## VERT SIZE
         #   epics_put("1ide1:Kohzu_E_dnVsize.VAL", ($2)+0.1, 10) ##
-        _beam_h_size    =   cfg['tomo']['beamsize_h']
-        _beam_v_size    =   cfg['tomo']['beamsize_v']
-        yield from bps.mv(beam.s1.h_size, _beam_h_size          )
-        yield from bps.mv(beam.s1.v_size, _beam_v_size          )
-        yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
-        yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
+        # _beam_h_size    =   cfg['tomo']['beamsize_h']
+        # _beam_v_size    =   cfg['tomo']['beamsize_v']
+        # yield from bps.mv(beam.s1.h_size, _beam_h_size          )
+        # yield from bps.mv(beam.s1.v_size, _beam_v_size          )
+        # yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
+        # yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
 
-        # set attenuation
-        _attenuation = cfg['tomo']['attenuation']
-        yield from bps.mv(beam.att.att_level, _attenuation)
+        # # set attenuation
+        # _attenuation = cfg['tomo']['attenuation']
+        # yield from bps.mv(beam.att.att_level, _attenuation)
 
-        # check energy
-        # need to be clear what we want to do here
-        _energy_foil = cfg['tomo']['energyfoil']
-        yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
+        # # check energy
+        # # need to be clear what we want to do here
+        # _energy_foil = cfg['tomo']['energyfoil']
+        # yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
+
+        # TODO:
+        #   Instead of setting the beam optics, just check the current setup
+        #   and print it out for user infomation.
+        # current beam size
+        cfg['nf']['beamsize_h']     = beam.s1.h_size
+        cfg['nf']['beamsize_v']     = beam.s1.v_size
+        # current lenses (proposed...)
+        cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        # current attenuation
+        cdg['nf']['attenuation']    = beam.att_level
+        # check energy? may not be necessary.
+
 
         # TODO:
         #   set up FS controls
@@ -606,36 +619,36 @@ class NearField(Experiment):
             beam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
             #   Focus lens 1
             beam.l1         = MotorBundle(name='l1')
-            beam.l1.l1x     = sim.SynAxis(name='l1x')
+            # beam.l1.l1x     = sim.SynAxis(name='l1x')
             beam.l1.l1y     = sim.SynAxis(name='l1y')
-            beam.l1.l1z     = sim.SynAxis(name='l1z')
-            beam.l1.l1rot   = sim.SynAxis(name='l1rot')
-            beam.l1.l1tx    = sim.SynAxis(name='l1tx')
-            beam.l1.l1tz    = sim.SynAxis(name='l1tz')
+            # beam.l1.l1z     = sim.SynAxis(name='l1z')
+            # beam.l1.l1rot   = sim.SynAxis(name='l1rot')
+            # beam.l1.l1tx    = sim.SynAxis(name='l1tx')
+            # beam.l1.l1tz    = sim.SynAxis(name='l1tz')
             #   Focus lens 2
             beam.l2         = MotorBundle(name='l2')
-            beam.l2.l1x     = sim.SynAxis(name='l2x')
+            # beam.l2.l1x     = sim.SynAxis(name='l2x')
             beam.l2.l1y     = sim.SynAxis(name='l2y')
-            beam.l2.l1z     = sim.SynAxis(name='l2z')
-            beam.l2.l1rot   = sim.SynAxis(name='l2rot')
-            beam.l2.l1tx    = sim.SynAxis(name='l2tx')
-            beam.l2.l1tz    = sim.SynAxis(name='l2tz')
+            # beam.l2.l1z     = sim.SynAxis(name='l2z')
+            # beam.l2.l1rot   = sim.SynAxis(name='l2rot')
+            # beam.l2.l1tx    = sim.SynAxis(name='l2tx')
+            # beam.l2.l1tz    = sim.SynAxis(name='l2tz')
             #   Focus lens 3
             beam.l3         = MotorBundle(name='l3')
-            beam.l3.l1x     = sim.SynAxis(name='l3x')
+            # beam.l3.l1x     = sim.SynAxis(name='l3x')
             beam.l3.l1y     = sim.SynAxis(name='l3y')
-            beam.l3.l1z     = sim.SynAxis(name='l3z')
-            beam.l3.l1rot   = sim.SynAxis(name='l3rot')
-            beam.l3.l1tx    = sim.SynAxis(name='l3tx')
-            beam.l3.l1tz    = sim.SynAxis(name='l3tz')
+            # beam.l3.l1z     = sim.SynAxis(name='l3z')
+            # beam.l3.l1rot   = sim.SynAxis(name='l3rot')
+            # beam.l3.l1tx    = sim.SynAxis(name='l3tx')
+            # beam.l3.l1tz    = sim.SynAxis(name='l3tz')
             #   Focus lens 4
             beam.l4         = MotorBundle(name='l4')
-            beam.l4.l1x     = sim.SynAxis(name='l4x')
+            # beam.l4.l1x     = sim.SynAxis(name='l4x')
             beam.l4.l1y     = sim.SynAxis(name='l4y')
-            beam.l4.l1z     = sim.SynAxis(name='l4z')
-            beam.l4.l1rot   = sim.SynAxis(name='l4rot')
-            beam.l4.l1tx    = sim.SynAxis(name='l4tx')
-            beam.l4.l1tz    = sim.SynAxis(name='l4tz')
+            # beam.l4.l1z     = sim.SynAxis(name='l4z')
+            # beam.l4.l1rot   = sim.SynAxis(name='l4rot')
+            # beam.l4.l1tx    = sim.SynAxis(name='l4tx')
+            # beam.l4.l1tz    = sim.SynAxis(name='l4tz')
 
             return beam
 
@@ -851,21 +864,33 @@ class NearField(Experiment):
         #   epics_put("1ide1:Kohzu_E_dnHsize.VAL", (($1)+0.1), 10) ##
         #   epics_put("1ide1:Kohzu_E_upVsize.VAL", ($2), 10) ## VERT SIZE
         #   epics_put("1ide1:Kohzu_E_dnVsize.VAL", ($2)+0.1, 10) ##
-        _beam_h_size    =   cfg['nf']['beamsize_h']
-        _beam_v_size    =   cfg['nf']['beamsize_v']
-        yield from bps.mv(beam.s1.h_size, _beam_h_size          )
-        yield from bps.mv(beam.s1.v_size, _beam_v_size          )
-        yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
-        yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
+        # _beam_h_size    =   cfg['nf']['beamsize_h']
+        # _beam_v_size    =   cfg['nf']['beamsize_v']
+        # yield from bps.mv(beam.s1.h_size, _beam_h_size          )
+        # yield from bps.mv(beam.s1.v_size, _beam_v_size          )
+        # yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
+        # yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
 
         # set attenuation
-        _attenuation = cfg['nf']['attenuation']
-        yield from bps.mv(beam.att.att_level, _attenuation)
+        # _attenuation = cfg['nf']['attenuation']
+        # yield from bps.mv(beam.att.att_level, _attenuation)
 
         # check energy
         # need to be clear what we want to do here
-        _energy_foil = cfg['nf']['energyfoil']
-        yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
+        # _energy_foil = cfg['nf']['energyfoil']
+        # yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
+
+        # TODO:
+        #   Instead of setting the beam optics, just check the current setup
+        #   and print it out for user infomation.
+        # current beam size
+        cfg['nf']['beamsize_h']     = beam.s1.h_size
+        cfg['nf']['beamsize_v']     = beam.s1.v_size
+        # current lenses (proposed...)
+        cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        # current attenuation
+        cdg['nf']['attenuation']    = beam.att_level
+        # check energy? may not be necessary.
 
         # TODO:
         #   set up FS controls
@@ -983,36 +1008,36 @@ class FarField(Experiment):
             beam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
             #   Focus lens 1
             beam.l1         = MotorBundle(name='l1')
-            beam.l1.l1x     = sim.SynAxis(name='l1x')
+            # beam.l1.l1x     = sim.SynAxis(name='l1x')
             beam.l1.l1y     = sim.SynAxis(name='l1y')
-            beam.l1.l1z     = sim.SynAxis(name='l1z')
-            beam.l1.l1rot   = sim.SynAxis(name='l1rot')
-            beam.l1.l1tx    = sim.SynAxis(name='l1tx')
-            beam.l1.l1tz    = sim.SynAxis(name='l1tz')
+            # beam.l1.l1z     = sim.SynAxis(name='l1z')
+            # beam.l1.l1rot   = sim.SynAxis(name='l1rot')
+            # beam.l1.l1tx    = sim.SynAxis(name='l1tx')
+            # beam.l1.l1tz    = sim.SynAxis(name='l1tz')
             #   Focus lens 2
             beam.l2         = MotorBundle(name='l2')
-            beam.l2.l1x     = sim.SynAxis(name='l2x')
+            # beam.l2.l1x     = sim.SynAxis(name='l2x')
             beam.l2.l1y     = sim.SynAxis(name='l2y')
-            beam.l2.l1z     = sim.SynAxis(name='l2z')
-            beam.l2.l1rot   = sim.SynAxis(name='l2rot')
-            beam.l2.l1tx    = sim.SynAxis(name='l2tx')
-            beam.l2.l1tz    = sim.SynAxis(name='l2tz')
+            # beam.l2.l1z     = sim.SynAxis(name='l2z')
+            # beam.l2.l1rot   = sim.SynAxis(name='l2rot')
+            # beam.l2.l1tx    = sim.SynAxis(name='l2tx')
+            # beam.l2.l1tz    = sim.SynAxis(name='l2tz')
             #   Focus lens 3
             beam.l3         = MotorBundle(name='l3')
-            beam.l3.l1x     = sim.SynAxis(name='l3x')
+            # beam.l3.l1x     = sim.SynAxis(name='l3x')
             beam.l3.l1y     = sim.SynAxis(name='l3y')
-            beam.l3.l1z     = sim.SynAxis(name='l3z')
-            beam.l3.l1rot   = sim.SynAxis(name='l3rot')
-            beam.l3.l1tx    = sim.SynAxis(name='l3tx')
-            beam.l3.l1tz    = sim.SynAxis(name='l3tz')
+            # beam.l3.l1z     = sim.SynAxis(name='l3z')
+            # beam.l3.l1rot   = sim.SynAxis(name='l3rot')
+            # beam.l3.l1tx    = sim.SynAxis(name='l3tx')
+            # beam.l3.l1tz    = sim.SynAxis(name='l3tz')
             #   Focus lens 4
             beam.l4         = MotorBundle(name='l4')
-            beam.l4.l1x     = sim.SynAxis(name='l4x')
+            # beam.l4.l1x     = sim.SynAxis(name='l4x')
             beam.l4.l1y     = sim.SynAxis(name='l4y')
-            beam.l4.l1z     = sim.SynAxis(name='l4z')
-            beam.l4.l1rot   = sim.SynAxis(name='l4rot')
-            beam.l4.l1tx    = sim.SynAxis(name='l4tx')
-            beam.l4.l1tz    = sim.SynAxis(name='l4tz')
+            # beam.l4.l1z     = sim.SynAxis(name='l4z')
+            # beam.l4.l1rot   = sim.SynAxis(name='l4rot')
+            # beam.l4.l1tx    = sim.SynAxis(name='l4tx')
+            # beam.l4.l1tz    = sim.SynAxis(name='l4tz')
 
             return beam
 
@@ -1296,23 +1321,36 @@ class FarField(Experiment):
         #   epics_put("1ide1:Kohzu_E_upHsize.VAL", ($1), 10) ##
         #   epics_put("1ide1:Kohzu_E_dnHsize.VAL", (($1)+0.1), 10) ##
         #   epics_put("1ide1:Kohzu_E_upVsize.VAL", ($2), 10) ## VERT SIZE
-        #   epics_put("1ide1:Kohzu_E_dnVsize.VAL", ($2)+0.1, 10) ##
-        _beam_h_size    =   cfg['ff']['beamsize_h']
-        _beam_v_size    =   cfg['ff']['beamsize_v']
-        yield from bps.mv(beam.s1.h_size, _beam_h_size          )
-        yield from bps.mv(beam.s1.v_size, _beam_v_size          )
-        yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
-        yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
+        # #   epics_put("1ide1:Kohzu_E_dnVsize.VAL", ($2)+0.1, 10) ##
+        # _beam_h_size    =   cfg['ff']['beamsize_h']
+        # _beam_v_size    =   cfg['ff']['beamsize_v']
+        # yield from bps.mv(beam.s1.h_size, _beam_h_size          )
+        # yield from bps.mv(beam.s1.v_size, _beam_v_size          )
+        # yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
+        # yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
 
-        # set attenuation
-        _attenuation = cfg['ff']['attenuation']
-        yield from bps.mv(beam.att.att_level, _attenuation)
+        # # set attenuation
+        # _attenuation = cfg['ff']['attenuation']
+        # yield from bps.mv(beam.att.att_level, _attenuation)
 
-        # check energy
-        # need to be clear what we want to do here
-        _energy_foil = cfg['nf']['energyfoil']
-        yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
+        # # check energy
+        # # need to be clear what we want to do here
+        # _energy_foil = cfg['nf']['energyfoil']
+        # yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
 
+        # TODO:
+        #   Instead of setting the beam optics, just check the current setup
+        #   and print it out for user infomation.
+        # current beam size
+        cfg['nf']['beamsize_h']     = beam.s1.h_size
+        cfg['nf']['beamsize_v']     = beam.s1.v_size
+        # current lenses (proposed...)
+        cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        # current attenuation
+        cdg['nf']['attenuation']    = beam.att_level
+        # check energy? may not be necessary.
+
+        
         # TODO:
         #   set up FS controls
         #   decide what to do with the focus lenses
