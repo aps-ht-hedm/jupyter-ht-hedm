@@ -9,66 +9,88 @@ TODO:
 """
 
 
-from ophyd   import Device
-from ophyd   import MotorBundle
-from ophyd   import Component
-from ophyd   import EpicsMotor
-from ophyd   import EpicsSignal
-from ophyd   import EpicsSignalRO
+from ophyd   import    Device
+from ophyd   import    MotorBundle
+from ophyd   import    Component
+from ophyd   import    EpicsMotor
+from ophyd   import    EpicsSignal
+from ophyd   import    EpicsSignalRO
 
 
 class StageAero(MotorBundle):
     """
     Motor stacks used for HT-HEDM
 
-        _______________________________
-        | fine translation:  kx,ky,kz |
-        ===============================
-        | air-bearing rotation: rot   |
-        ===============================
-        | coarse translation: x, y, z |
-        -------------------------------
+        ___________________________________
+        |   fine translation:  kx,ky,kz   |
+        |   fine tilt: kx_tilt, kz_tilt   |
+        ===================================
+        |    air-bearing rotation: rot    |
+        ===================================
+        |  coarse translation below Aero: | 
+        |     x_base, y_base, z_base      |
+        -----------------------------------
 
-    TODO:
-        update with acutal PV
     """
-    kx_trans = Component(EpicsMotor, "$TRKX_PV", name='kx_trans')  # x motion with kozu stage
-    ky_trans = Component(EpicsMotor, "$TRKY_PV", name='ky_trans')  # y motion with kozu stage
-    kz_trans = Component(EpicsMotor, "$TRKZ_PV", name='kz_trans')  # z motion with kozu stage
 
-    rot_y    = Component(EpicsMotor, "$ROT_PV", name='rot_y'  )  # rotation with aero stage
-    x_trans  = Component(EpicsMotor, "$TRX_PV", name='x_trans')  # x motion with aero stage
-    y_trans  = Component(EpicsMotor, "$TRY_PV", name='y_trans')  # y motion with aero stage
-    z_trans  = Component(EpicsMotor, "$TRZ_PV", name='z_trans')  # z motion with aero stage
+    #   TODO:
+    #   update with acutal PV
+    kx      = Component(EpicsMotor, "$TRKX_PV", name='kx_trans')  # x motion with kohzu stage
+    ky      = Component(EpicsMotor, "$TRKY_PV", name='ky_trans')  # y motion with kohzu stage
+    kz      = Component(EpicsMotor, "$TRKZ_PV", name='kz_trans')  # z motion with kohzu stage
+    kx_tilt = Component(EpicsMotor, "$TTKX_PV", name='kx_tilt')   # kohzu tilt motion along x
+    kz_tilt = Component(EpicsMotor, "$TTKZ_PV", name='kz_tilt')   # kohzu tilt motion along z
+
+    rot     = Component(EpicsMotor, "$ROT_PV",  name='rot_y'  )    # rotation with aero stage
+
+    x_base  = Component(EpicsMotor, "$TRX_PV",  name='x_trans')    # x motion below aero stage
+    y_base  = Component(EpicsMotor, "$TRY_PV",  name='y_trans')    # y motion below aero stage
+    z_base  = Component(EpicsMotor, "$TRZ_PV",  name='z_trans')    # z motion below aero stage
 
     @property
     def status(self):
         """return full pv list and corresponding values"""
         # TODO:
-        #   once acutal PVs are known, the implementation should goes here
+        #   once acutal PVs are known, the implementation should go here
+        #   my thought is to list useful PV status for users,
+        #   a full list should be implemented in the Ultima for dev     /JasonZ
+        #   Maybe print StateAero.position_cached ?
         pass
 
     def cache_position(self):
-        """quickly cache all motor positions"""
+        """cache current motor positions"""
+        #   Add other motors if any (i.e. Kohzu tilt)
+        # TODO:
+        #   We need to consider what to do when cached positions are not the same
+        #   as the physical positions when a motor is manually moved
         self.position_cached = {
-            "kx_trans": self.kx_trans.position,
-            "ky_trans": self.ky_trans.position,
-            "kz_trans": self.kz_trans.position,
-            "rot_y":    self.rot_y.position   ,
-            "x_trans ": self.x_trans.position ,
-            "y_trans ": self.y_trans.position ,
-            "z_trans ": self.z_trans.position ,
+            "kx"       : self.kx.position,
+            "ky"       : self.ky.position,
+            "kz"       : self.kz.position,
+            "kx_tilt"  : self.kx_tilt.position,
+            "kz_tilt"  : self.kz_tilt.position,
+
+            "rot"      : self.rot.position   ,
+
+            "x_base"   : self.x_base.position ,
+            "y_base"   : self.y_base.position ,
+            "z_base"   : self.z_base.position ,
         }
 
     def resume_position(self):
         """move motors to previously cached position"""
-        self.kx_trans.mv(self.position_cached['kx_trans'])
-        self.ky_trans.mv(self.position_cached['ky_trans'])
-        self.kz_trans.mv(self.position_cached['kz_trans'])
-        self.rot_y.mv(   self.position_cached['rot_y'   ])
-        self.x_trans .mv(self.position_cached['x_trans '])
-        self.y_trans .mv(self.position_cached['y_trans '])
-        self.z_trans .mv(self.position_cached['z_trans '])
+        #   Add other motors if any (i.e. Kohzu tilt)
+        self.kx.mv(self.position_cached['kx'])
+        self.ky.mv(self.position_cached['ky'])
+        self.kz.mv(self.position_cached['kz'])
+        self.kx_tilt.mv(self.position_cached['kx_tilt'])
+        self.kz_tilt.mv(self.position_cached['kz_tilt'])
+
+        self.rot.mv(self.position_cached['rot'])
+
+        self.x_base.mv(self.position_cached['x_base'])
+        self.y_base.mv(self.position_cached['y_base'])
+        self.z_base.mv(self.position_cached['z_base'])
 
 
 class TaxiFlyScanDevice(Device):
@@ -86,8 +108,8 @@ class TaxiFlyScanDevice(Device):
     In a third (optional) phase, data is collected 
     from hardware and written to a file.
     """
-    taxi = Component(EpicsSignal, "taxi", put_complete=True)
-    fly = Component(EpicsSignal, "fly", put_complete=True)
+    taxi    = Component(EpicsSignal, "taxi", put_complete=True)
+    fly     = Component(EpicsSignal, "fly",  put_complete=True)
     
     def plan(self):
         yield from bps.mv(self.taxi, self.taxi.enum_strs[1])

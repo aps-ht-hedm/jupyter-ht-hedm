@@ -1,0 +1,121 @@
+# NOTE:
+# This is a yaml based scan configuration file that can be directly pass
+# to the tomo_scan() function or nf_scan(), ff_scan()
+# i.e.
+# RE(tomo_scan(SCAN_CONFIG.YML))
+
+# Will use a centralized yml for all the scans, notebook will spit out individual scan configs/pdf
+
+
+
+tomo:
+  # The beamline optics shouldn't be a user input
+  # These parameters should be determined during the interactive session
+  # and then be used for scans. 
+  # Before the scan, the parameters used should be presented and logged.
+  # ## Beamline optics
+  # energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
+  #                         #   probably just need to do once???
+  # attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
+  # FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
+  # beamsize_h:   0.5       # horizontal beam size
+  # beamsize_v:   0.5       # vertical beam size
+  ## Scan parameters
+  type:    fly           # [step|fly]
+  # If our use case is simple enough, we could have the FS control to go with the scan type
+  
+  # TODO:
+  #   Consider setting these to default and embed in code.
+  n_white: 5             # num of white field before and after tomo
+  n_dark:  5             # num of dark field images after tomo
+  
+  sample_out_position:    # !!relative to the current position!! 
+                          # which motors are we using? kx or x_base?
+    kx:  -1             # mm (relative position to initial position)
+    kz:   0             # mm (relative position to initial position)
+  acquire_time:   0.10    # sec
+  acquire_period: 0.11    # sec, acquire_time+0.01, (not being used in fly)
+  omega_step:     0.2     # degree
+  omega_start:    0.0    # degree
+  omega_end:     10.0    # degree
+  n_frames:       1       # 5 frames -> 1 images
+  # below are for fly_scan only
+  ROT_STAGE_FAST_SPEED:       1   # degree/second,
+  accl:                       3   # second,
+  readout_time:  0.001    # detector readout time
+                          # consider using camera name for this if the readout time is standard for each camera
+
+
+nf:
+  # TODO: same as tomo
+  # ## Beamline optics
+  # energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
+  # attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
+  # FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
+  # beamsize_h:   0.5       # horizontal beam size
+  # beamsize_v:   0.5       # vertical beam size
+  ## Scan parameters
+  type:    fly           # always fly for NF
+  
+  sample_out_position:    # !!relative to the current position!! 
+                          # which motors are we using? kx or x_base?
+    kx:   -1            # mm (relative position to initial position)
+    kz:   0             # mm (relative position to initial position)
+  detector_z_position:    # The two detector z positions for NF
+    nf_z1:    7     
+    nf_z2:    10      
+  volume:                 # NF scan volume
+    ky_start:   2.5       # ky position of first NF layer
+    ky_step:    0.5       # step between layers, can be negative, set to 0 to repeat the current layer for n_layer times
+    n_layers:   10        # total number of layers to be done
+  acquire_time:   0.10    # sec
+  omega_step:     0.2     # degree
+  omega_start:    0.0    # degree
+  omega_end:     360.0    # degree
+  n_frames:       1       # 5 frames -> 1 images
+  # below are for fly_scan only
+  ROT_STAGE_FAST_SPEED:       1   # degree/second,
+  accl:                       3   # second,
+  readout_time:  0.001    # detector readout time
+
+ff:
+  # TODO: same as tomo
+  # ## Beamline optics
+  # energyfoil:   "Re"      #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
+  # attenuation:  "a number"         # Place hodler. This doesn't seem to be pre-defined for the entire run
+  # FS_control:   "sweep"   # sweep, detpulse, detexposure etc. used this to determine FS control
+  # beamsize_h:   0.5       # horizontal beam size
+  # beamsize_v:   0.5       # vertical beam size
+  ## Scan parameters
+  type:    fly           # [step|fly]
+  sample_out_position:    # !!relative to the current position!! 
+                          # which motors are we using? kx or x_base?
+    kx:   -1            # mm (relative position to initial position)
+    kz:   0             # mm (relative position to initial position)
+  detector_z_position:    # We need to think about which detector distance to use here (actual/motor)
+    ff_z1:    7         
+  volume:                 # NF scan volume
+    ky_start:   2.5       # ky position of first NF layer
+    ky_step:    0.5       # step between layers, can be negative, set to 0 to repeat the current layer for n_layer times
+    n_layers:   10        # total number of layers to be done
+  
+  n_dark:  5             # num of dark field images after ff
+  
+  acquire_time:   0.10    # sec
+  acquire_period: 0.11    # sec, acquire_time+0.01, (not being used in fly)
+  omega_step:     0.2     # degree
+  omega_start:    0.0    # degree
+  omega_end:     10.0    # degree
+  n_frames:       1       # 5 frames -> 1 images
+  # below are for fly_scan only
+  ROT_STAGE_FAST_SPEED:       1   # degree/second,
+  accl:                       3   # second,
+  readout_time:  0.001    # detector readout time
+
+output:  # we should include the output in each experiment (i.e. tomo, NF, FF)       
+#  filepath:    '/home/beams/S6BM/user_data/2019-2/startup_jun19/tomo/'    # use testing location
+  # We could extract the file path from the proposal as well
+  # Consider autofill the path if that works.
+  filepath:    '/dev/shm/tmp/'    # use testing location
+  fileprefix:  'ttt'       # specify file name
+  type:        'hdf'       # [tiff|tif, hdf|hdf1|hdf5]

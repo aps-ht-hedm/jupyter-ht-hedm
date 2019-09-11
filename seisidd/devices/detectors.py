@@ -6,43 +6,66 @@ This module contains detectors customized for APS-MPE group.
 NOTE:
 * Retiga area detector is not readily available in Ophyd
 * Retiga area detector camera needs to be either setup here or PR to ophyd 
+* Changed to PointGrey Detectors in this example
 """
 
 from ophyd   import AreaDetector
 from ophyd   import SingleTrigger, EpicsSignalWithRBV
 from ophyd   import ADComponent
-from ophyd   import CamBase, DexelaDetectorCam
+from ophyd   import CamBase, DexelaDetectorCam, PointGreyDetectorCam
 from ophyd   import ProcessPlugin
 from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
 
 
+class HDF5Plugin6IDD(HDF5Plugin):
+    """AD HDF5 plugin customizations (properties)"""
+    xml_file_name = ADComponent(EpicsSignalWithRBV, "XMLFileName")
+
+
 class RetigaDetectorCam(CamBase):
-    """Retiga camera """
+    """PointGrey camera """
     # NOTE:
     # Different camera module from different manufacture requires different
     # configuration, see 
     #  https://github.com/bluesky/ophyd/blob/master/ophyd/areadetector/cam.py
-    # for more examples on how to make the Retiga cam
+    # for more examples on how to make the PointGrey cam
     pass
 
+class RetigaDetectorCam6IDD(RetigaDetectorCam):
+    """Retiga detector camera module"""
+    # TODO:
+    #   We will do this if we have to....
+    #   Please, please, please don't purchase this
+    pass
 
 class DexelaDetectorCam6IDD(DexelaDetectorCam):
     """Dexela detector camera module"""
     # TODO:
     #   Missing features from the default settings need to be added here
+    #   Check with Jun at the end of Oct for the new Dexela info
     pass
 
 
-class HDF5Plugin6IDD(HDF5Plugin):
-    """AD HDF5 plugin customizations (properties)"""
-    xml_file_name = ADComponent(EpicsSignalWithRBV, "XMLFileName")
-        
+class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
+    """PointGrey Grasshopper3 cam plugin customizations (properties)"""
+    auto_exposure_on_off    = ADComponent(EpicsSignalWithRBV, "AutoExposureOnOff")
+    auto_exposure_auto_mode = ADComponent(EpicsSignalWithRBV, "AutoExposureAutoMode")
+    sharpness_on_off        = ADComponent(EpicsSignalWithRBV, "SharpnessOnOff")
+    sharpness_auto_mode     = ADComponent(EpicsSignalWithRBV, "SharpnessAutoMode")
+    gamma_on_off            = ADComponent(EpicsSignalWithRBV, "GammaOnOff")
+    shutter_auto_mode       = ADComponent(EpicsSignalWithRBV, "ShutterAutoMode")
+    gain_auto_mode          = ADComponent(EpicsSignalWithRBV, "GainAutoMode")
+    trigger_mode_on_off     = ADComponent(EpicsSignalWithRBV, "TriggerModeOnOff")
+    trigger_mode_auto_mode  = ADComponent(EpicsSignalWithRBV, "TriggerModeAutoMode")
+    trigger_delay_on_off    = ADComponent(EpicsSignalWithRBV, "TriggerDelayOnOff")
+    frame_rate_on_off       = ADComponent(EpicsSignalWithRBV, "FrameRateOnOff")
+    frame_rate_auto_mode    = ADComponent(EpicsSignalWithRBV, "FrameRateAutoMode")
 
-class RetigaDetector(SingleTrigger, AreaDetector):
-    """Retiga Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
+class PointGreyDetector(SingleTrigger, AreaDetector):
+    """PointGrey Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
 
-    cam   = ADComponent(RetigaDetectorCam, suffix="cam1:" )  # camera
+    cam   = ADComponent(PointGreyDetectorCam6IDD, suffix="cam1:" )  # camera
     proc1 = ADComponent(ProcessPlugin,     suffix="Proc1:")  # processing
     tiff1 = ADComponent(TIFFPlugin,        suffix="TIFF1:")  # tiff output
     hdf1  = ADComponent(HDF5Plugin6IDD,    suffix="HDF1:" )  # HDF5 output
@@ -69,6 +92,7 @@ class RetigaDetector(SingleTrigger, AreaDetector):
         """move the detector to the new location"""
         # NOTE:
         #   This is for interactive control only, cannot be used in scan plan
+        #   We will need to use this position during scan, i.e. near field z scan
         pass
 
     # TODO:
@@ -113,8 +137,8 @@ class DexelaDetector(SingleTrigger, AreaDetector):
 
 
 if __name__ == "__main__":
-    # example on how to make an instance of Retiga detector
-    det = RetigaDetector("TBD_PV", name='det')
+    # example on how to make an instance of the PointGrey detector
+    det = PointGreyDetector("TBD_PV", name='det')
 
     # additional setup might be necessary to use the dxchange format for
     # HDF5 output, see 
