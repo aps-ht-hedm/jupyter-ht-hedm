@@ -17,7 +17,7 @@ def load_config(yamlfile):
         _dict = yaml.safe_load(stream)
     return _dict
 
-ddef dict_to_msg(input_dict):
+def dict_to_msg(input_dict):
     """
     Unfold a nested dictionary to a string.
     To the maximum of 3 levels.
