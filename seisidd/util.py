@@ -17,6 +17,28 @@ def load_config(yamlfile):
         _dict = yaml.safe_load(stream)
     return _dict
 
+ddef dict_to_msg(input_dict):
+    """
+    Unfold a nested dictionary to a string.
+    To the maximum of 3 levels.
+    """
+    msg = ""
+    for ikey, ivalue in input_dict.items():
+        if isinstance(ivalue, dict):
+            msg += f"{ikey}:\n"
+            for iikey, iivalue in ivalue.items():
+                if isinstance(iivalue, dict):
+                    _msg_temp = "\n".join(("    {} = {}".format(*iii) for iii in iivalue.items()))
+                    msg += f"  {iikey}:\n{_msg_temp} \n"
+                else:
+                    _msg_temp = f"  {iikey} = {iivalue} \n"
+                    msg += _msg_temp
+            # msg += "\n"   # toggle this to add lines between blocks
+        else:
+            _msg_temp = f"{ikey} = {ivalue} \n"
+            msg += _msg_temp
+    return msg
+
 
 def innotebook():
     try:
