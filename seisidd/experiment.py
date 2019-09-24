@@ -491,12 +491,12 @@ class Tomography(Experiment):
         #   Instead of setting the beam optics, just check the current setup
         #   and print it out for user infomation.
         # current beam size
-        cfg['nf']['beamsize_h']     = beam.s1.h_size
-        cfg['nf']['beamsize_v']     = beam.s1.v_size
+        cfg['tomo']['beamsize_h']     = beam.s1.h_size
+        cfg['tomo']['beamsize_v']     = beam.s1.v_size
         # current lenses (proposed...)
-        cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
         # current attenuation
-        cdg['nf']['attenuation']    = beam.att_level
+        cdg['tomo']['attenuation']    = beam.att_level
         # check energy? may not be necessary.
 
 
@@ -1431,12 +1431,12 @@ class FarField(Experiment):
         #   Instead of setting the beam optics, just check the current setup
         #   and print it out for user infomation.
         # current beam size
-        cfg['nf']['beamsize_h']     = beam.s1.h_size
-        cfg['nf']['beamsize_v']     = beam.s1.v_size
+        cfg['ff']['beamsize_h']     = beam.s1.h_size
+        cfg['ff']['beamsize_v']     = beam.s1.v_size
         # current lenses (proposed...)
-        cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        cfg['ff']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
         # current attenuation
-        cdg['nf']['attenuation']    = beam.att_level
+        cdg['ff']['attenuation']    = beam.att_level
         # check energy? may not be necessary.
 
         
