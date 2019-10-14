@@ -21,6 +21,7 @@ from  .devices.beamline              import FastShutter
 from  .devices.motors                import StageAero
 from  .devices.motors                import EnsemblePSOFlyDevice
 from  .devices.detectors             import PointGreyDetector   
+from  .utility                       import dict_to_msg
 from  .utility                       import load_config
 
 import bluesky.preprocessors as bpp
@@ -106,14 +107,42 @@ class Tomography(Experiment):
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
-        # 
-    
+         
+    def check(self):
+        """Return user input before run"""
+        print(f"FarField configuration:\n{dict_to_msg(cfg['tomo'])}")
+        print(f"Output:\n{dict_to_msg(cfg['output'])}")
+
     def __repr__(self):
         """Return summary of the current experiment status"""
+        beam  = self.tomo_beam
+        stage = self.tomo_stage
+        # get the current beamline optics
+        # TODO: need to figure out how to get the beam energy
+        _beamline_status = (
+                           f"Beam Size is:   {beam.s1.h_size}x{beam.s1.v_size} (HxV) \n"
+                           f"Attenuation is: {beam.att_level}                        \n"
+                           f"Beam Energy is: {beam.energy}                           \n"   
+                           f"Focus Lenses Positions: l1y @ {beam.l1.l1y}             \n"    
+                           f"                        l2y @ {beam.l2.l2y}             \n"    
+                           f"                        l3y @ {beam.l3.l3y}             \n"    
+                           f"                        l4y @ {beam.l4.l4y}             \n"         
+                           )
+
+        _status_msg = (
+                        (f"Here is the current beamline status:\n")            +
+                        _beamline_status                                       +
+                        (f"\nHere are the current motor positions:\n")         +
+                        dict_to_msg(stage.position_cached)                     +
+                        (f"\nHere is the current experiment configuration:\n") +
+                        dict_to_msg(cfg['tomo'])                                 +
+                        (f"\nHere are the file output info:\n")                +
+                        dict_to_msg(cfg['output'])
+                      )
+        return _status_msg
         # TODO:
         #   verbose string representation of the experiment and beamline
-        #   status as a dictionary -> yaml
-        pass 
+        #   status as a dictionary -> yaml 
 
     def calibration(self):
         """Perform beamline calibration"""
@@ -221,7 +250,6 @@ class Tomography(Experiment):
             tomostage.x_base  = sim.SynAxis(name='x_base')
             tomostage.y_base  = sim.SynAxis(name='y_base')
             tomostage.z_base  = sim.SynAxis(name='z_base')
-
         else:
             raise ValueError(f"Invalide mode -> {mode}")
         return tomostage
@@ -434,9 +462,9 @@ class Tomography(Experiment):
         #   set the lenses, change the intended slit size
         #   prime the control of FS
 
-        #############################################
-        ## step 0.1: check and set beam parameters ##
-        #############################################
+        #####################################
+        ## step 0.1: check beam parameters ##
+        #####################################
         # set slit sizes
         # These are the 1-ID-E controls
         #   epics_put("1ide1:Kohzu_E_upHsize.VAL", ($1), 10) ##
@@ -463,12 +491,12 @@ class Tomography(Experiment):
         #   Instead of setting the beam optics, just check the current setup
         #   and print it out for user infomation.
         # current beam size
-        cfg['nf']['beamsize_h']     = beam.s1.h_size
-        cfg['nf']['beamsize_v']     = beam.s1.v_size
+        cfg['tomo']['beamsize_h']     = beam.s1.h_size
+        cfg['tomo']['beamsize_v']     = beam.s1.v_size
         # current lenses (proposed...)
-        cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
         # current attenuation
-        cdg['nf']['attenuation']    = beam.att_level
+        cdg['tomo']['attenuation']    = beam.att_level
         # check energy? may not be necessary.
 
 
@@ -503,7 +531,11 @@ class Tomography(Experiment):
         cfg['tomo']['back_white_kx']    = x0 + dbx
         cfg['tomo']['back_white_kz']    = z0 + dbz
         
-        
+        ###############################################
+        ## step 0.9: print out the cfg for user info ##
+        ###############################################     
+        print
+
         @bpp.stage_decorator([det])
         @bpp.run_decorator()
         def scan_closure():
@@ -579,14 +611,42 @@ class NearField(Experiment):
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
         # 
-    
+    def check(self):
+        """Return user input before run"""
+        print(f"NearField configuration:\n{dict_to_msg(cfg['nf'])}")
+        print(f"Output:\n{dict_to_msg(cfg['output'])}")
+
     def __repr__(self):
         """Return summary of the current experiment status"""
+        beam  = self.nf_beam
+        stage = self.nf_stage
+        # get the current beamline optics
+        # TODO: need to figure out how to get the beam energy
+        _beamline_status = (
+                           f"Beam Size is:   {beam.s1.h_size}x{beam.s1.v_size} (HxV) \n"
+                           f"Attenuation is: {beam.att_level}                        \n"
+                           f"Beam Energy is: {beam.energy}                           \n"   
+                           f"Focus Lenses Positions: l1y @ {beam.l1.l1y}             \n"    
+                           f"                        l2y @ {beam.l2.l2y}             \n"    
+                           f"                        l3y @ {beam.l3.l3y}             \n"    
+                           f"                        l4y @ {beam.l4.l4y}             \n"         
+                           )
+
+        _status_msg = (
+                        (f"Here is the current beamline status:\n")            +
+                        _beamline_status                                       +
+                        (f"\nHere are the current motor positions:\n")         +
+                        dict_to_msg(stage.position_cached)                     +
+                        (f"\nHere is the current experiment configuration:\n") +
+                        dict_to_msg(cfg['nf'])                                 +
+                        (f"\nHere are the file output info:\n")                +
+                        dict_to_msg(cfg['output'])
+                      )
+        return _status_msg
         # TODO:
         #   verbose string representation of the experiment and beamline
-        #   status as a dictionary -> yaml
-        pass 
-    
+        #   status as a dictionary -> yaml 
+
     @staticmethod
     def get_nfbeam(mode):
         """return NFbeam based on given mode"""
@@ -969,12 +1029,41 @@ class FarField(Experiment):
         # a cached/lookup table
         # 
     
+    def check(self):
+        """Return user input before run"""
+        print(f"FarField configuration:\n{dict_to_msg(cfg['ff'])}")
+        print(f"Output:\n{dict_to_msg(cfg['output'])}")
+
     def __repr__(self):
         """Return summary of the current experiment status"""
+        beam  = self.ff_beam
+        stage = self.ff_stage
+        # get the current beamline optics
+        # TODO: need to figure out how to get the beam energy
+        _beamline_status = (
+                           f"Beam Size is:   {beam.s1.h_size}x{beam.s1.v_size} (HxV) \n"
+                           f"Attenuation is: {beam.att_level}                        \n"
+                           f"Beam Energy is: {beam.energy}                           \n"   
+                           f"Focus Lenses Positions: l1y @ {beam.l1.l1y}             \n"    
+                           f"                        l2y @ {beam.l2.l2y}             \n"    
+                           f"                        l3y @ {beam.l3.l3y}             \n"    
+                           f"                        l4y @ {beam.l4.l4y}             \n"         
+                           )
+
+        _status_msg = (
+                        (f"Here is the current beamline status:\n")            +
+                        _beamline_status                                       +
+                        (f"\nHere are the current motor positions:\n")         +
+                        dict_to_msg(stage.position_cached)                     +
+                        (f"\nHere is the current experiment configuration:\n") +
+                        dict_to_msg(cfg['ff'])                                 +
+                        (f"\nHere are the file output info:\n")                +
+                        dict_to_msg(cfg['output'])
+                      )
+        return _status_msg
         # TODO:
         #   verbose string representation of the experiment and beamline
-        #   status as a dictionary -> yaml
-        pass 
+        #   status as a dictionary -> yaml 
     
     @staticmethod
     def get_ffbeam(mode):
@@ -1342,12 +1431,12 @@ class FarField(Experiment):
         #   Instead of setting the beam optics, just check the current setup
         #   and print it out for user infomation.
         # current beam size
-        cfg['nf']['beamsize_h']     = beam.s1.h_size
-        cfg['nf']['beamsize_v']     = beam.s1.v_size
+        cfg['ff']['beamsize_h']     = beam.s1.h_size
+        cfg['ff']['beamsize_v']     = beam.s1.v_size
         # current lenses (proposed...)
-        cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        cfg['ff']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
         # current attenuation
-        cdg['nf']['attenuation']    = beam.att_level
+        cdg['ff']['attenuation']    = beam.att_level
         # check energy? may not be necessary.
 
         
