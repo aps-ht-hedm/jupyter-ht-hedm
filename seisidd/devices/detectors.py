@@ -145,6 +145,66 @@ class DexelaDetector(SingleTrigger, AreaDetector):
     #  acutal PVs are known.    
 
 
+class SimDetectorCam6IDD(PointGreyDetectorCam):
+    """
+    Using SimDetector as PointGrey:
+    cam plugin customizations (properties)
+    """
+    auto_exposure_on_off    = ADComponent(EpicsSignalWithRBV, "AutoExposureOnOff")
+    auto_exposure_auto_mode = ADComponent(EpicsSignalWithRBV, "AutoExposureAutoMode")
+    sharpness_on_off        = ADComponent(EpicsSignalWithRBV, "SharpnessOnOff")
+    sharpness_auto_mode     = ADComponent(EpicsSignalWithRBV, "SharpnessAutoMode")
+    gamma_on_off            = ADComponent(EpicsSignalWithRBV, "GammaOnOff")
+    shutter_auto_mode       = ADComponent(EpicsSignalWithRBV, "ShutterAutoMode")
+    gain_auto_mode          = ADComponent(EpicsSignalWithRBV, "GainAutoMode")
+    trigger_mode_on_off     = ADComponent(EpicsSignalWithRBV, "TriggerModeOnOff")
+    trigger_mode_auto_mode  = ADComponent(EpicsSignalWithRBV, "TriggerModeAutoMode")
+    trigger_delay_on_off    = ADComponent(EpicsSignalWithRBV, "TriggerDelayOnOff")
+    frame_rate_on_off       = ADComponent(EpicsSignalWithRBV, "FrameRateOnOff")
+    frame_rate_auto_mode    = ADComponent(EpicsSignalWithRBV, "FrameRateAutoMode")
+
+
+class SimDetector(SingleTrigger, AreaDetector):
+    """
+    Simulated Detector used at 6-ID-D@APS
+    This is based on the Point Grey detector
+    """
+
+    cam   = ADComponent(SimDetectorCam6IDD, suffix="cam1:" )  # camera
+    proc1 = ADComponent(ProcessPlugin,      suffix="Proc1:")  # processing
+    tiff1 = ADComponent(TIFFPlugin,         suffix="TIFF1:")  # tiff output
+    hdf1  = ADComponent(HDF5Plugin6IDD,     suffix="HDF1:" )  # HDF5 output
+
+    @property
+    def status(self):
+        """List all related PVs and corresponding values"""
+        # TODO:
+        #   provide acutal implementation here
+        return "Not implemented yet"
+
+    @property
+    def help(self):
+        """Return quick summary of the actual specs of the detector"""
+        pass
+
+    @property
+    def position(self):
+        """return the area detector position from the associated motor"""
+        pass
+
+    @position.setter
+    def position(self, new_pos):
+        """move the detector to the new location"""
+        # NOTE:
+        #   This is for interactive control only, cannot be used in scan plan
+        #   We will need to use this position during scan, i.e. near field z scan
+        pass
+
+    # TODO:
+    #  Additional PVs can be wrapped as property for interactive use when the 
+    #  acutal PVs are known.
+
+
 if __name__ == "__main__":
     # example on how to make an instance of the PointGrey detector
     det = PointGreyDetector("TBD_PV", name='det')
