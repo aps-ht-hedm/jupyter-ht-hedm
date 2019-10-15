@@ -12,7 +12,7 @@ NOTE:
 from ophyd   import AreaDetector
 from ophyd   import SingleTrigger, EpicsSignalWithRBV
 from ophyd   import ADComponent
-from ophyd   import CamBase, DexelaDetectorCam, PointGreyDetectorCam
+from ophyd   import CamBase, PointGreyDetectorCam  ## no DexelaDetectorCam in Ophyd
 from ophyd   import ProcessPlugin
 from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
@@ -24,7 +24,7 @@ class HDF5Plugin6IDD(HDF5Plugin):
 
 
 class RetigaDetectorCam(CamBase):
-    """PointGrey camera """
+    """Retiga camera """
     # NOTE:
     # Different camera module from different manufacture requires different
     # configuration, see 
@@ -37,6 +37,15 @@ class RetigaDetectorCam6IDD(RetigaDetectorCam):
     # TODO:
     #   We will do this if we have to....
     #   Please, please, please don't purchase this
+    pass
+
+class DexelaDetectorCam(CamBase):
+    """Dexela detector camera module """
+    # NOTE:
+    # Different camera module from different manufacture requires different
+    # configuration, see 
+    #  https://github.com/bluesky/ophyd/blob/master/ophyd/areadetector/cam.py
+    # for more examples on how to make the PointGrey cam
     pass
 
 class DexelaDetectorCam6IDD(DexelaDetectorCam):
