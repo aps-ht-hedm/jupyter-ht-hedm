@@ -21,7 +21,7 @@ from  .devices.beamline              import Beam
 from  .devices.beamline              import FastShutter
 from  .devices.motors                import StageAero
 from  .devices.motors                import EnsemblePSOFlyDevice
-from  .devices.detectors             import PointGreyDetector, DexelaDetector   
+from  .devices.detectors             import PointGreyDetector, DexelaDetector, SimDetector  
 from  .util                          import dict_to_msg
 from  .util                          import load_config
 
@@ -34,8 +34,9 @@ class Experiment:
 
     def __init__(self, mode='debug'):
         self.RE = bluesky.RunEngine({})
-        self.db = databroker.Broker.named("mongodb_config")
-        self.RE.subscribe(self.db.insert)
+        # TODO: commented out for virtual beamline testing
+        #self.db = databroker.Broker.named("mongodb_config")
+        #self.RE.subscribe(self.db.insert)
         self.RE.subscribe(BestEffortCallback())
 
         self._mode   = mode
@@ -269,10 +270,31 @@ class Tomography(Experiment):
 
     @staticmethod
     def get_detector(mode):
+        # TODO: implement real PVs
         if mode.lower() == 'debug':
-            # TODO: need better simulated detectors
-            from ophyd import sim
-            det = sim.noisy_det
+            det = SimDetector("6iddSIMDET1:", name='det')
+
+            epics.caput("6iddSIMDET1:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType.THST", "/exchange/data_dark")
+            # ophyd need this configuration
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            # set the layout file for cam
+            # TODO:  need to udpate with acutal config files for 6-ID-D
+            _current_fp = str(pathlib.Path(__file__).parent.absolute())
+            _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+            _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.hdf1.xml_file_name.put(_layout_fp)
+            # turn off the problematic auto setting in cam
+            # det.cam.auto_exposure_auto_mode.put(0)  
+            # det.cam.sharpness_auto_mode.put(0)
+            # det.cam.gain_auto_mode.put(0)
+            # det.cam.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             #   need to check this name for assigning the detector
             det = PointGreyDetector("PV_DET", name='det')
@@ -438,7 +460,7 @@ class Tomography(Experiment):
         # the following needs to be updated for 6-ID-D
 
         # update the cached motor position in the dict in case exp goes wrong
-        _cahed_position = self.tomo_stage.cache_position()
+        _cached_position = self.tomo_stage.cache_position()
     
         #########################
         ## step 0: preparation ##
@@ -755,10 +777,31 @@ class NearField(Experiment):
 
     @staticmethod
     def get_detector(mode):
+        # TODO: implement real PVs
         if mode.lower() == 'debug':
-            # TODO: need better simulated detectors
-            from ophyd import sim
-            det = sim.noisy_det
+            det = SimDetector("6iddSIMDET1:", name='det')
+
+            epics.caput("6iddSIMDET1:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType.THST", "/exchange/data_dark")
+            # ophyd need this configuration
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            # set the layout file for cam
+            # TODO:  need to udpate with acutal config files for 6-ID-D
+            _current_fp = str(pathlib.Path(__file__).parent.absolute())
+            _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+            _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.hdf1.xml_file_name.put(_layout_fp)
+            # turn off the problematic auto setting in cam
+            det.cam.auto_exposure_auto_mode.put(0)  
+            det.cam.sharpness_auto_mode.put(0)
+            det.cam.gain_auto_mode.put(0)
+            det.cam.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             det = PointGreyDetector("PV_DET", name='det')
             # check the following page for important information
@@ -854,7 +897,7 @@ class NearField(Experiment):
         # the following needs to be updated for 6-ID-D
 
         # update the cached motor position in the dict in case exp goes wrong
-        _cahed_position = self.nf_stage.cache_position()
+        _cached_position = self.nf_stage.cache_position()
     
         #########################
         ## step 0: preparation ##
@@ -1177,10 +1220,31 @@ class FarField(Experiment):
 
     @staticmethod
     def get_detector(mode):
+        # TODO: implement real PVs
         if mode.lower() == 'debug':
-            # TODO: need better simulated detectors
-            from ophyd import sim
-            det = sim.noisy_det
+            det = SimDetector("6iddSIMDET1:", name='det')
+
+            epics.caput("6iddSIMDET1:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType.THST", "/exchange/data_dark")
+            # ophyd need this configuration
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            # set the layout file for cam
+            # TODO:  need to udpate with acutal config files for 6-ID-D
+            _current_fp = str(pathlib.Path(__file__).parent.absolute())
+            _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+            _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.hdf1.xml_file_name.put(_layout_fp)
+            # turn off the problematic auto setting in cam
+            det.cam.auto_exposure_auto_mode.put(0)  
+            det.cam.sharpness_auto_mode.put(0)
+            det.cam.gain_auto_mode.put(0)
+            det.cam.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             ### TODO:
             ###     Need to get have the Dexela configured in Devices.py
@@ -1329,7 +1393,7 @@ class FarField(Experiment):
         # the following needs to be updated for 6-ID-D
 
         # update the cached motor position in the dict in case exp goes wrong
-        _cahed_position = self.ff_stage.cache_position()
+        _cached_position = self.ff_stage.cache_position()
     
         #########################
         ## step 0: preparation ##
