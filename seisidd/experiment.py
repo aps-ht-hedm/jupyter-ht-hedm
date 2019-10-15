@@ -11,6 +11,7 @@ import bluesky
 import ophyd
 import epics
 import databroker
+import numpy as np
 
 from   bluesky.callbacks.best_effort import BestEffortCallback
 from   bluesky.suspenders            import SuspendFloor
@@ -20,9 +21,9 @@ from  .devices.beamline              import Beam
 from  .devices.beamline              import FastShutter
 from  .devices.motors                import StageAero
 from  .devices.motors                import EnsemblePSOFlyDevice
-from  .devices.detectors             import PointGreyDetector   
-from  .utility                       import dict_to_msg
-from  .utility                       import load_config
+from  .devices.detectors             import PointGreyDetector, DexelaDetector   
+from  .util                          import dict_to_msg
+from  .util                          import load_config
 
 import bluesky.preprocessors as bpp
 import bluesky.plan_stubs    as bps
@@ -91,7 +92,6 @@ class Experiment:
         """Return fast shutter"""
         # TODO: implement the fast shutter, then instantiate it here
         pass
-
     
 class Tomography(Experiment):
     """Tomography experiment control for 6-ID-D."""
@@ -108,7 +108,7 @@ class Tomography(Experiment):
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
          
-    def check(self):
+    def check(self, cfg):
         """Return user input before run"""
         print(f"FarField configuration:\n{dict_to_msg(cfg['tomo'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
@@ -134,10 +134,10 @@ class Tomography(Experiment):
                         _beamline_status                                       +
                         (f"\nHere are the current motor positions:\n")         +
                         dict_to_msg(stage.position_cached)                     +
-                        (f"\nHere is the current experiment configuration:\n") +
-                        dict_to_msg(cfg['tomo'])                                 +
-                        (f"\nHere are the file output info:\n")                +
-                        dict_to_msg(cfg['output'])
+                        (f"\nHere is the current experiment configuration:\n") 
+                        # dict_to_msg(cfg['tomo'])                               +
+                        # (f"\nHere are the file output info:\n")                +
+                        # dict_to_msg(cfg['output'])
                       )
         return _status_msg
         # TODO:
@@ -275,7 +275,7 @@ class Tomography(Experiment):
             det = sim.noisy_det
         elif mode.lower() in ['dryrun', 'production']:
             #   need to check this name for assigning the detector
-            det = PointGreyDetector6IDD("PV_DET", name='det')
+            det = PointGreyDetector("PV_DET", name='det')
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
             #
@@ -496,7 +496,7 @@ class Tomography(Experiment):
         # current lenses (proposed...)
         cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
         # current attenuation
-        cdg['tomo']['attenuation']    = beam.att_level
+        cfg['tomo']['attenuation']    = beam.att_level
         # check energy? may not be necessary.
 
 
@@ -593,7 +593,7 @@ class Tomography(Experiment):
     #   summarize_plan with config yml file
     def dryrun(self, scan_config):
         """use summarize_plan for quick analysis"""
-        return summarize_plan(tomo_scan(self, scan_config))
+        return summarize_plan(self.tomo_scan(scan_config))
 
 
 class NearField(Experiment):
@@ -611,7 +611,7 @@ class NearField(Experiment):
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
         # 
-    def check(self):
+    def check(self, cfg):
         """Return user input before run"""
         print(f"NearField configuration:\n{dict_to_msg(cfg['nf'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
@@ -637,10 +637,10 @@ class NearField(Experiment):
                         _beamline_status                                       +
                         (f"\nHere are the current motor positions:\n")         +
                         dict_to_msg(stage.position_cached)                     +
-                        (f"\nHere is the current experiment configuration:\n") +
-                        dict_to_msg(cfg['nf'])                                 +
-                        (f"\nHere are the file output info:\n")                +
-                        dict_to_msg(cfg['output'])
+                        (f"\nHere is the current experiment configuration:\n") 
+                        # dict_to_msg(cfg['nf'])                                 +
+                        # (f"\nHere are the file output info:\n")                +
+                        # dict_to_msg(cfg['output'])
                       )
         return _status_msg
         # TODO:
@@ -760,7 +760,7 @@ class NearField(Experiment):
             from ophyd import sim
             det = sim.noisy_det
         elif mode.lower() in ['dryrun', 'production']:
-            det = PointGreyDetector6IDD("PV_DET", name='det')
+            det = PointGreyDetector("PV_DET", name='det')
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
             #
@@ -836,46 +836,6 @@ class NearField(Experiment):
         yield from bps.abs_set(psofly.fly, "Fly", group='fly')
         yield from bps.wait(group='fly')
 
-    @bpp.stage_decorator([det])         
-    @bpp.run_decorator()
-    def scan_singlelayer(self, cfg_nf, _layer_number):
-        # TODO:
-        #   Somewhere we need to check the light status, or, add a suspender?
-        # config output
-        # currently set up to output 1 HDF5 file for each NF layer, including 2 det positions
-        for me in [det.tiff1, det.hdf1]:
-            yield from bps.mv(me.file_path, fp)
-            yield from bps.mv(me.file_name, '{}_layer{:06d}'.format(fn, _layer_number))
-            yield from bps.mv(me.file_write_mode, 2)
-            yield from bps.mv(me.num_capture, cfg['nf']['total_images']*2)       # *2 for two det positions
-            yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
-
-        if cfg['output']['type'] in ['tif', 'tiff']:
-            yield from bps.mv(det.tiff1.enable, 1)
-            yield from bps.mv(det.tiff1.capture, 1)
-            yield from bps.mv(det.hdf1.enable, 0)
-        elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
-            yield from bps.mv(det.tiff1.enable, 0)
-            yield from bps.mv(det.hdf1.enable, 1)
-            yield from bps.mv(det.hdf1.capture, 1)
-        else:
-            raise ValueError(f"Unsupported output type {cfg['output']['type']}")
-
-        #  TODO:
-        #   Add FS control here to toggle the FS or Main Shutter?
-
-        # collect projections in the current layer in the FIRST det z position
-        yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
-        yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z1']) # need actual motor
-        yield from self.fly_scan(cfg['nf'])
-
-        # collect projections in the current layer in the SECOND det z position
-        yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z2']) # need actual motor
-        yield from self.fly_scan(cfg['nf'])
-        
-        #  TODO:
-        #   Add FS control here to close the FS or Main Shutter?
-
     def nf_scan(self, cfg):
         """
         NearField scan plan based on given configuration
@@ -949,7 +909,7 @@ class NearField(Experiment):
         # current lenses (proposed...)
         cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
         # current attenuation
-        cdg['nf']['attenuation']    = beam.att_level
+        cfg['nf']['attenuation']    = beam.att_level
         # check energy? may not be necessary.
 
         # TODO:
@@ -984,7 +944,51 @@ class NearField(Experiment):
         
         ## Ideally, we set up the FS control once, then the FS will be controlled with
         ## intended signals
-        
+    
+        #########################################
+        ##  Function for NF Single Layer Scan  ##
+        #########################################
+
+        @bpp.stage_decorator([det])         
+        @bpp.run_decorator()
+        def scan_singlelayer(self, cfg_nf, _layer_number):
+            # TODO:
+            #   Somewhere we need to check the light status, or, add a suspender?
+            # config output
+            # currently set up to output 1 HDF5 file for each NF layer, including 2 det positions
+            for me in [det.tiff1, det.hdf1]:
+                yield from bps.mv(me.file_path, fp)
+                yield from bps.mv(me.file_name, '{}_layer{:06d}'.format(fn, _layer_number))
+                yield from bps.mv(me.file_write_mode, 2)
+                yield from bps.mv(me.num_capture, cfg['nf']['total_images']*2)       # *2 for two det positions
+                yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
+
+            if cfg['output']['type'] in ['tif', 'tiff']:
+                yield from bps.mv(det.tiff1.enable, 1)
+                yield from bps.mv(det.tiff1.capture, 1)
+                yield from bps.mv(det.hdf1.enable, 0)
+            elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
+                yield from bps.mv(det.tiff1.enable, 0)
+                yield from bps.mv(det.hdf1.enable, 1)
+                yield from bps.mv(det.hdf1.capture, 1)
+            else:
+                raise ValueError(f"Unsupported output type {cfg['output']['type']}")
+
+            #  TODO:
+            #   Add FS control here to toggle the FS or Main Shutter?
+
+            # collect projections in the current layer in the FIRST det z position
+            yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z1']) # need actual motor
+            yield from self.fly_scan(cfg['nf'])
+
+            # collect projections in the current layer in the SECOND det z position
+            yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z2']) # need actual motor
+            yield from self.fly_scan(cfg['nf'])
+            
+            #  TODO:
+            #   Add FS control here to close the FS or Main Shutter?
+
         ############################
         ## Near Field Volume Scan ##
         ############################
@@ -994,23 +998,23 @@ class NearField(Experiment):
         if ky_step == 0:
             # To repeat the current layer for n_layer times
             # !!! The layer/file number will still increase for this same layer
-            _scan_positions = np.arange(1, n_layers+1), 1)
-            for _layer_number_count in _scan_position:
+            _scan_positions = np.arange(1, n_layers+1, 1)
+            for _layer_number_count in _scan_positions:
                 yield from bps.mv(stage.ky, ky_start)
-                yield from scan_singlelayer(cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
         # For regular scans
         elif ky_step != 0:
             _layer_number_count  = 1
             _scan_positions = np.arange(ky_start, ky_start+(n_layers-0.5)*ky_step, ky_step)
-            for _current_scan_ky in _scan_position:
+            for _current_scan_ky in _scan_positions:
                 yield from bps.mv(stage.ky, _current_scan_ky)
-                yield from scan_singlelayer(cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
                 _layer_number_count += 1
 
     #   summarize_plan with config yml file
     def dryrun(self, scan_config):
         """use summarize_plan for quick analysis"""
-        return summarize_plan(nf_scan(self, scan_config))
+        return summarize_plan(self.nf_scan(scan_config))
 
 
 class FarField(Experiment):
@@ -1029,7 +1033,7 @@ class FarField(Experiment):
         # a cached/lookup table
         # 
     
-    def check(self):
+    def check(self, cfg):
         """Return user input before run"""
         print(f"FarField configuration:\n{dict_to_msg(cfg['ff'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
@@ -1055,10 +1059,10 @@ class FarField(Experiment):
                         _beamline_status                                       +
                         (f"\nHere are the current motor positions:\n")         +
                         dict_to_msg(stage.position_cached)                     +
-                        (f"\nHere is the current experiment configuration:\n") +
-                        dict_to_msg(cfg['ff'])                                 +
-                        (f"\nHere are the file output info:\n")                +
-                        dict_to_msg(cfg['output'])
+                        (f"\nHere is the current experiment configuration:\n") 
+                        # dict_to_msg(cfg['ff'])                                 +
+                        # (f"\nHere are the file output info:\n")                +
+                        # dict_to_msg(cfg['output'])
                       )
         return _status_msg
         # TODO:
@@ -1180,7 +1184,7 @@ class FarField(Experiment):
         elif mode.lower() in ['dryrun', 'production']:
             ### TODO:
             ###     Need to get have the Dexela configured in Devices.py
-            det = DexelaDetectorCam6IDD("PV_DET", name='det')
+            det = DexelaDetector("PV_DET", name='det')
             """
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
@@ -1259,7 +1263,7 @@ class FarField(Experiment):
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.reset_filter, 1)
-        yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+        yield from bps.mv(det.proc1.num_filter, cfg_ff['n_frames'])
    
         angs = np.arange(
             cfg_ff['omega_start'], 
@@ -1306,61 +1310,6 @@ class FarField(Experiment):
         yield from bps.trigger(det, group='fly')
         yield from bps.abs_set(psofly.fly, "Fly", group='fly')
         yield from bps.wait(group='fly')
-
-    @bpp.stage_decorator([det])         
-    @bpp.run_decorator()
-    def scan_singlelayer(self, cfg_ff, _layer_number):
-        # TODO:
-        #   Somewhere we need to check the light status, or, add a suspender?
-        # config output
-        for me in [det.tiff1, det.hdf1]:
-            yield from bps.mv(me.file_path, fp)
-            yield from bps.mv(me.file_name, '{}_layer{:06d}'.format(fn, _layer_number))
-            yield from bps.mv(me.file_write_mode, 2)
-            yield from bps.mv(me.num_capture, cfg['ff'['total_images'])     
-            yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
-
-        if cfg['output']['type'] in ['tif', 'tiff']:
-            yield from bps.mv(det.tiff1.enable, 1)
-            yield from bps.mv(det.tiff1.capture, 1)
-            yield from bps.mv(det.hdf1.enable, 0)
-        elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
-            yield from bps.mv(det.tiff1.enable, 0)
-            yield from bps.mv(det.hdf1.enable, 1)
-            yield from bps.mv(det.hdf1.capture, 1)
-        else:
-            raise ValueError(f"Unsupported output type {cfg['output']['type']}")
-
-        #  TODO:
-        #   Add FS control here to toggle the FS or Main Shutter?
-
-        # collect front dark field
-        yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
-        yield from bps.remove_suspender(shutter_suspender)
-        yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
-        yield from self.collect_dark_field(cfg['ff'])
-
-        ### NOTE: the main shutter may be closed after dark field!!!
-
-        # collect projections in the current layer in the det z position
-        # Let's discussed if we want det z control during scans
-        yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
-        if cfg['ff']['type'].lower() == 'step':
-            yield from self.step_scan(cfg['ff'])
-        elif cfg['ff']['type'].lower() == 'fly':
-            # yield from bps.mv(det.cam.position, cfg_ff['detector_z_position']['ff_z1']) # need actual motor
-            yield from self.fly_scan(cfg['nf'])
-        else:
-            raise ValueError(f"Unsupported scan type: {cfg['ff']['type']}")
-
-        # collect back dark field
-        yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
-        yield from bps.remove_suspender(shutter_suspender)
-        yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
-        yield from self.collect_dark_field(cfg['ff'])
-        
-        #  TODO:
-        #   Add FS control here to close the FS or Main Shutter?
 
     def ff_scan(self, cfg):
         """
@@ -1436,7 +1385,7 @@ class FarField(Experiment):
         # current lenses (proposed...)
         cfg['ff']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
         # current attenuation
-        cdg['ff']['attenuation']    = beam.att_level
+        cfg['ff']['attenuation']    = beam.att_level
         # check energy? may not be necessary.
 
         
@@ -1478,7 +1427,66 @@ class FarField(Experiment):
         
         ## Ideally, we set up the FS control once, then the FS will be controlled with
         ## intended signals
-        
+
+        #########################################
+        ##  Function for FF Single Layer Scan  ##
+        #########################################
+
+        @bpp.stage_decorator([det])         
+        @bpp.run_decorator()
+        def scan_singlelayer(self, cfg_ff, _layer_number):
+            # TODO:
+            #   Somewhere we need to check the light status, or, add a suspender?
+            # config output
+            for me in [det.tiff1, det.hdf1]:
+                yield from bps.mv(me.file_path, fp)
+                yield from bps.mv(me.file_name, '{}_layer{:06d}'.format(fn, _layer_number))
+                yield from bps.mv(me.file_write_mode, 2)
+                yield from bps.mv(me.num_capture, cfg['ff']['total_images'])     
+                yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
+
+            if cfg['output']['type'] in ['tif', 'tiff']:
+                yield from bps.mv(det.tiff1.enable, 1)
+                yield from bps.mv(det.tiff1.capture, 1)
+                yield from bps.mv(det.hdf1.enable, 0)
+            elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
+                yield from bps.mv(det.tiff1.enable, 0)
+                yield from bps.mv(det.hdf1.enable, 1)
+                yield from bps.mv(det.hdf1.capture, 1)
+            else:
+                raise ValueError(f"Unsupported output type {cfg['output']['type']}")
+
+            #  TODO:
+            #   Add FS control here to toggle the FS or Main Shutter?
+
+            # collect front dark field
+            yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
+            yield from bps.remove_suspender(shutter_suspender)
+            yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
+            yield from self.collect_dark_field(cfg['ff'])
+
+            ### NOTE: the main shutter may be closed after dark field!!!
+
+            # collect projections in the current layer in the det z position
+            # Let's discussed if we want det z control during scans
+            yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
+            if cfg['ff']['type'].lower() == 'step':
+                yield from self.step_scan(cfg['ff'])
+            elif cfg['ff']['type'].lower() == 'fly':
+                # yield from bps.mv(det.cam.position, cfg_ff['detector_z_position']['ff_z1']) # need actual motor
+                yield from self.fly_scan(cfg['nf'])
+            else:
+                raise ValueError(f"Unsupported scan type: {cfg['ff']['type']}")
+
+            # collect back dark field
+            yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
+            yield from bps.remove_suspender(shutter_suspender)
+            yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
+            yield from self.collect_dark_field(cfg['ff'])
+            
+            #  TODO:
+            #   Add FS control here to close the FS or Main Shutter?
+
         ###########################
         ## Far Field Volume Scan ##
         ###########################
@@ -1489,17 +1497,17 @@ class FarField(Experiment):
         if ky_step == 0:
             # To repeat the current layer for n_layer times
             # !!! The layer/file number will still increase for this same layer
-            _scan_positions = np.arange(1, n_layers+1), 1)
-            for _layer_number_count in _scan_position:
+            _scan_positions = np.arange(1, n_layers+1, 1)
+            for _layer_number_count in _scan_positions:
                 yield from bps.mv(stage.ky, ky_start)
-                yield from scan_singlelayer(cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
         # For regular scans
         elif ky_step != 0:
             _layer_number_count  = 1
             _scan_positions = np.arange(ky_start, ky_start+(n_layers-0.5)*ky_step, ky_step)
-            for _current_scan_ky in _scan_position:
+            for _current_scan_ky in _scan_positions:
                 yield from bps.mv(stage.ky, _current_scan_ky)
-                yield from scan_singlelayer(cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
                 _layer_number_count += 1
 
         # TODO:
@@ -1509,7 +1517,7 @@ class FarField(Experiment):
     #   summarize_plan with config yml file
     def dryrun(self, scan_config):
         """use summarize_plan for quick analysis"""
-        return summarize_plan(ff_scan(self, scan_config))
+        return summarize_plan(self.ff_scan(scan_config))
 
 
 if __name__ == "__main__":
