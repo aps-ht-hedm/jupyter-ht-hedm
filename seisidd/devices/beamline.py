@@ -118,28 +118,28 @@ class Attenuator:
     _att_level_spreadsheet = {
         0   :   0     ,
         1   :   50    ,
-        2   :   NA    ,
-        3   :   NA    ,   
-        4   :   NA    ,   
-        5   :   NA    ,
-        6   :   NA    ,
-        7   :   NA    ,
-        8   :   NA    ,
-        9   :   NA    ,
-        10  :   NA    ,
-        11  :   NA    ,
-        12  :   NA    ,
-        13  :   NA    ,
-        14  :   NA    ,
-        15  :   NA    ,
-        16  :   NA    ,
-        17  :   NA    ,
-        18  :   NA    ,
-        19  :   NA    ,
-        20  :   NA    ,
-        21  :   NA    ,
-        22  :   NA    ,
-        23  :   NA
+        2   :   50    ,
+        3   :   50    ,   
+        4   :   50    ,   
+        5   :   50    ,
+        6   :   50    ,
+        7   :   50    ,
+        8   :   50    ,
+        9   :   50    ,
+        10  :   50    ,
+        11  :   50    ,
+        12  :   50    ,
+        13  :   50    ,
+        14  :   50    ,
+        15  :   50    ,
+        16  :   50    ,
+        17  :   50    ,
+        18  :   50    ,
+        19  :   50    ,
+        20  :   50    ,
+        21  :   50    ,
+        22  :   50    ,
+        23  :   50
     }
 
     #   This is the total range for current att_levels
@@ -203,7 +203,7 @@ class Beam:
         self.att        = Attenuator()
         self.foil       = EnergyFoil()         # may need to do the energy calibration outside Beam, manually
 
-    def __repr__(self)
+    def __repr__(self):
         """Return the current beam status"""
         #   slits sizes and positions
         #   ic readings? maybe
