@@ -123,7 +123,7 @@ services:
     volumes:
       - .:/home/jupyter-ht-hedm  
       - ./vbdata/data:/data
-      - .seisidd/config:/home/.config/databroker
+      - ./seisidd/config:/etc/databroker
 
 networks:
   vn6idd:
