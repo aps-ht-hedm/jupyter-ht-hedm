@@ -170,7 +170,7 @@ class SimDetector(SingleTrigger, AreaDetector):
     This is based on the Point Grey detector
     """
 
-    cam   = ADComponent(SimDetectorCam6IDD, suffix="cam1:" )  # camera
+    cam1  = ADComponent(SimDetectorCam6IDD, suffix="cam1:" )  # camera
     proc1 = ADComponent(ProcessPlugin,      suffix="Proc1:")  # processing
     tiff1 = ADComponent(TIFFPlugin,         suffix="TIFF1:")  # tiff output
     hdf1  = ADComponent(HDF5Plugin6IDD,     suffix="HDF1:" )  # HDF5 output
