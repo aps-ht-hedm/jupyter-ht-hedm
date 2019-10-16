@@ -92,6 +92,7 @@ services:
     container_name: mongoDB
     restart: always
     image: mongo
+    hostname: mongodb
     networks: 
       - vn6idd
     ports:
@@ -122,6 +123,7 @@ services:
     volumes:
       - .:/home/jupyter-ht-hedm  
       - ./vbdata/data:/data
+      - .seisidd/config:/home/.config/databroker
 
 networks:
   vn6idd:
