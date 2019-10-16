@@ -34,8 +34,8 @@ class Experiment:
 
     def __init__(self, mode='debug'):
         self.RE = bluesky.RunEngine({})
-        self.db = databroker.Broker.named("mongodb_config")
-        self.RE.subscribe(self.db.insert)
+        # self.db = databroker.Broker.named("mongodb_config")
+        # self.RE.subscribe(self.db.insert)
         self.RE.subscribe(BestEffortCallback())
 
         self._mode   = mode
@@ -524,19 +524,18 @@ class Tomography(Experiment):
             # TODO:
             #   Somewhere we need to check the light status
             # open shutter for beam
-            if self._mode.lower in ['production']:
+            if self._mode.lower() in ['production']:
                 yield from bps.mv(shutter, 'open')
                 yield from bps.install_suspender(shutter_suspender)
-            
             # config output
-            if self._mode.lower in ['dryrun','production']:
+            if self._mode.lower() in ['dryrun','production']:
                 for me in [det.tiff1, det.hdf1]:
                     yield from bps.mv(me.file_path, fp)
                     yield from bps.mv(me.file_name, fn)
                     yield from bps.mv(me.file_write_mode, 2)
                     yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
-            elif self._mode.lower in ['debug']:
+            elif self._mode.lower() in ['debug']:
                 for me in [det.tiff1, det.hdf1]:
                     print('setting file path')
                     yield from bps.mv(me.file_path, '/data')
