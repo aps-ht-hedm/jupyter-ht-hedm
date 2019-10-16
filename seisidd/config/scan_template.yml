@@ -21,7 +21,7 @@ tomo:
   # beamsize_h:   0.5       # horizontal beam size
   # beamsize_v:   0.5       # vertical beam size
   ## Scan parameters
-  type:    fly           # [step|fly]
+  type:    step           # [step|fly]
   # If our use case is simple enough, we could have the FS control to go with the scan type
   
   # TODO:
@@ -116,6 +116,6 @@ output:  # we should include the output in each experiment (i.e. tomo, NF, FF)
 #  filepath:    '/home/beams/S6BM/user_data/2019-2/startup_jun19/tomo/'    # use testing location
   # We could extract the file path from the proposal as well
   # Consider autofill the path if that works.
-  filepath:    '/dev/shm/tmp/'    # use testing location
+  filepath:    '/data'    # use testing location
   fileprefix:  'ttt'       # specify file name
-  type:        'hdf'       # [tiff|tif, hdf|hdf1|hdf5]
+  type:        'tif'       # [tiff|tif, hdf|hdf1|hdf5]

@@ -11,18 +11,19 @@ import bluesky
 import ophyd
 import epics
 import databroker
+import numpy as np
 
 from   bluesky.callbacks.best_effort import BestEffortCallback
 from   bluesky.suspenders            import SuspendFloor
 from   bluesky.simulators            import summarize_plan
 
-from  .devices.beamline              import Beam
+from  .devices.beamline              import Beam, SimBeam
 from  .devices.beamline              import FastShutter
-from  .devices.motors                import StageAero
+from  .devices.motors                import StageAero, SimStageAero
 from  .devices.motors                import EnsemblePSOFlyDevice
-from  .devices.detectors             import PointGreyDetector   
-from  .utility                       import dict_to_msg
-from  .utility                       import load_config
+from  .devices.detectors             import PointGreyDetector, DexelaDetector, SimDetector  
+from  .util                          import dict_to_msg
+from  .util                          import load_config
 
 import bluesky.preprocessors as bpp
 import bluesky.plan_stubs    as bps
@@ -33,15 +34,17 @@ class Experiment:
 
     def __init__(self, mode='debug'):
         self.RE = bluesky.RunEngine({})
-        self.db = databroker.Broker.named("mongodb_config")
-        self.RE.subscribe(self.db.insert)
+        # TODO: commented out for virtual beamline testing
+        #self.db = databroker.Broker.named("mongodb_config")
+        #self.RE.subscribe(self.db.insert)
         self.RE.subscribe(BestEffortCallback())
 
         self._mode   = mode
-        from apstools.devices import ApsMachineParametersDevice
-        self._aps    = ApsMachineParametersDevice(name="APS")
-        self.shutter = Experiment.get_main_shutter(mode)
-        self.suspend_shutter = SuspendFloor(self.shutter.pss_state, 1)
+        if mode.lower() in ['production']:
+            from apstools.devices import ApsMachineParametersDevice
+            self._aps    = ApsMachineParametersDevice(name="APS")
+            self.shutter = Experiment.get_main_shutter(mode)
+            self.suspend_shutter = SuspendFloor(self.shutter.pss_state, 1)
 
         # TODO:
         # create fast shutter here
@@ -58,8 +61,9 @@ class Experiment:
 
 
         # monitor APS current
-        self.suspend_APS_current = SuspendFloor(self._aps.current, 2, resume_thresh=10)
-        self.RE.install_suspender(self.suspend_APS_current)
+        if mode.lower() in ['dryrun', 'production']:
+            self.suspend_APS_current = SuspendFloor(self._aps.current, 2, resume_thresh=10)
+            self.RE.install_suspender(self.suspend_APS_current)
 
     @staticmethod
     def get_main_shutter(mode):
@@ -91,7 +95,6 @@ class Experiment:
         """Return fast shutter"""
         # TODO: implement the fast shutter, then instantiate it here
         pass
-
     
 class Tomography(Experiment):
     """Tomography experiment control for 6-ID-D."""
@@ -107,18 +110,35 @@ class Tomography(Experiment):
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
+    
+    @property
+    def mode(self):
+        return f"current mode is {self._mode}, available options are ['debug', 'dryrun', 'production']"
+    
+    @mode.setter
+    def mode(self, newmode):
+        self._mode       = newmode
+        self.shutter     = Experiment.get_main_shutter(self._mode)
+        self.tomo_stage  = Tomography.get_tomostage(self._mode)
+        self.fly_control = Tomography.get_flycontrol(self._mode)
+        self.tomo_det    = Tomography.get_detector(self._mode)
+        self.tomo_beam   = Tomography.get_tomobeam(self._mode)
          
-    def check(self):
+    def check(self, cfg):
         """Return user input before run"""
-        print(f"FarField configuration:\n{dict_to_msg(cfg['tomo'])}")
+        print(f"Tomo configuration:\n{dict_to_msg(cfg['tomo'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
+
 
     def __repr__(self):
         """Return summary of the current experiment status"""
+        """
         beam  = self.tomo_beam
         stage = self.tomo_stage
         # get the current beamline optics
         # TODO: need to figure out how to get the beam energy
+        # commented out for sim testing
+        
         _beamline_status = (
                            f"Beam Size is:   {beam.s1.h_size}x{beam.s1.v_size} (HxV) \n"
                            f"Attenuation is: {beam.att_level}                        \n"
@@ -128,18 +148,21 @@ class Tomography(Experiment):
                            f"                        l3y @ {beam.l3.l3y}             \n"    
                            f"                        l4y @ {beam.l4.l4y}             \n"         
                            )
+        
 
         _status_msg = (
                         (f"Here is the current beamline status:\n")            +
                         _beamline_status                                       +
                         (f"\nHere are the current motor positions:\n")         +
                         dict_to_msg(stage.position_cached)                     +
-                        (f"\nHere is the current experiment configuration:\n") +
-                        dict_to_msg(cfg['tomo'])                                 +
-                        (f"\nHere are the file output info:\n")                +
-                        dict_to_msg(cfg['output'])
+                        (f"\nHere is the current experiment configuration:\n") 
+                        # dict_to_msg(cfg['tomo'])                               +
+                        # (f"\nHere are the file output info:\n")                +
+                        # dict_to_msg(cfg['output'])
                       )
         return _status_msg
+        """
+
         # TODO:
         #   verbose string representation of the experiment and beamline
         #   status as a dictionary -> yaml 
@@ -155,8 +178,7 @@ class Tomography(Experiment):
         #  according to the images.  However, they are requesting more features like determine 
         #  the slit position and size.
         #  Jun and Peter will test this code during the first week of October, let wait for their feedback.
-
-
+        
         pass
 
     @staticmethod
@@ -167,64 +189,12 @@ class Tomography(Experiment):
         elif mode.lower() == 'debug':
             # NOTE:
             #   This is a place holder for maybe additional control of the beam
-            #   in the debug mode.  Let's discuss what should be exposed here.
-            #   Or, we just use some simulated motors for the beam here as below?
-            from ophyd import sim
-            from ophyd import MotorBundle
-            #   simulated tomobeam motor bundle.  This part need FIX!!!
-            beam            = MotorBundle(name='beam')
-            #   Upstream slit, slit1
-            beam.s1         = MotorBundle(name='s1')
-            beam.s1.h_ib    = sim.SynAxis(name='h_ib')
-            beam.s1.h_ob    = sim.SynAxis(name='h_ob')
-            beam.s1.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            beam.s1.v_tp    = sim.SynAxis(name='v_tp')
-            beam.s1.v_bt    = sim.SynAxis(name='v_bt')
-            beam.s1.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
-            #   Downstream slit, slit2
-            beam.s2         = MotorBundle(name='s2')
-            beam.s2.h_ib    = sim.SynAxis(name='h_ib')
-            beam.s2.h_ob    = sim.SynAxis(name='h_ob')
-            beam.s2.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            beam.s2.v_tp    = sim.SynAxis(name='v_tp')
-            beam.s2.v_bt    = sim.SynAxis(name='v_bt')
-            beam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
-            #   Focus lens 1
-            beam.l1         = MotorBundle(name='l1')
-            # beam.l1.l1x     = sim.SynAxis(name='l1x')
-            beam.l1.l1y     = sim.SynAxis(name='l1y')
-            # beam.l1.l1z     = sim.SynAxis(name='l1z')
-            # beam.l1.l1rot   = sim.SynAxis(name='l1rot')
-            # beam.l1.l1tx    = sim.SynAxis(name='l1tx')
-            # beam.l1.l1tz    = sim.SynAxis(name='l1tz')
-            #   Focus lens 2
-            beam.l2         = MotorBundle(name='l2')
-            # beam.l2.l1x     = sim.SynAxis(name='l2x')
-            beam.l2.l1y     = sim.SynAxis(name='l2y')
-            # beam.l2.l1z     = sim.SynAxis(name='l2z')
-            # beam.l2.l1rot   = sim.SynAxis(name='l2rot')
-            # beam.l2.l1tx    = sim.SynAxis(name='l2tx')
-            # beam.l2.l1tz    = sim.SynAxis(name='l2tz')
-            #   Focus lens 3
-            beam.l3         = MotorBundle(name='l3')
-            # beam.l3.l1x     = sim.SynAxis(name='l3x')
-            beam.l3.l1y     = sim.SynAxis(name='l3y')
-            # beam.l3.l1z     = sim.SynAxis(name='l3z')
-            # beam.l3.l1rot   = sim.SynAxis(name='l3rot')
-            # beam.l3.l1tx    = sim.SynAxis(name='l3tx')
-            # beam.l3.l1tz    = sim.SynAxis(name='l3tz')
-            #   Focus lens 4
-            beam.l4         = MotorBundle(name='l4')
-            # beam.l4.l1x     = sim.SynAxis(name='l4x')
-            beam.l4.l1y     = sim.SynAxis(name='l4y')
-            # beam.l4.l1z     = sim.SynAxis(name='l4z')
-            # beam.l4.l1rot   = sim.SynAxis(name='l4rot')
-            # beam.l4.l1tx    = sim.SynAxis(name='l4tx')
-            # beam.l4.l1tz    = sim.SynAxis(name='l4tz')
-
-            return beam
-
-
+            #   simulated tomobeam from the virtual beamline
+            #   dumped all the simulated beam control to m16
+            beam = SimBeam()
+        else:
+            raise ValueError(f"Invalide mode -> {mode}")
+        return beam
 
     @staticmethod
     def get_tomostage(mode):
@@ -233,23 +203,8 @@ class Tomography(Experiment):
             tomostage = StageAero(name='tomostage')
         elif mode.lower() == 'debug':
             # NOTE:
-            #    Moving a synthetic motor will lead to some really strange
-            #    issue.  This could be related to the API change in the
-            #    synAxis.
-            from ophyd import sim
-            from ophyd import MotorBundle
-            tomostage         = MotorBundle(name="tomostage")
-            tomostage.kx      = sim.SynAxis(name='kx')
-            tomostage.ky      = sim.SynAxis(name='ky')
-            tomostage.kz      = sim.SynAxis(name='kz')
-            tomostage.kx_tilt = sim.SynAxis(name='kx_tilt')
-            tomostage.kz_tilt = sim.SynAxis(name='kz_tilt')
-
-            tomostage.rot    = sim.SynAxis(name='rot')
-
-            tomostage.x_base  = sim.SynAxis(name='x_base')
-            tomostage.y_base  = sim.SynAxis(name='y_base')
-            tomostage.z_base  = sim.SynAxis(name='z_base')
+            #    Using SimStageAero from the Virtual Beamline.
+            tomostage = SimStageAero(name='tomostage')
         else:
             raise ValueError(f"Invalide mode -> {mode}")
         return tomostage
@@ -269,13 +224,35 @@ class Tomography(Experiment):
 
     @staticmethod
     def get_detector(mode):
+        # TODO: implement real PVs
         if mode.lower() == 'debug':
-            # TODO: need better simulated detectors
-            from ophyd import sim
-            det = sim.noisy_det
+            det = SimDetector("6iddSIMDET1:", name='det')
+
+            epics.caput("6iddSIMDET1:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType.THST", "/exchange/data_dark")
+            # ophyd need this configuration
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            # set the layout file for cam
+            # TODO:  need to udpate with acutal config files for 6-ID-D
+            # TODO: commented for Sim test
+            # _current_fp = str(pathlib.Path(__file__).parent.absolute())
+            # _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+            # _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+            # det.cam.nd_attributes_file.put(_attrib_fp)
+            # det.hdf1.xml_file_name.put(_layout_fp)
+            # turn off the problematic auto setting in cam
+            # det.cam.auto_exposure_auto_mode.put(0)  
+            # det.cam.sharpness_auto_mode.put(0)
+            # det.cam.gain_auto_mode.put(0)
+            # det.cam.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             #   need to check this name for assigning the detector
-            det = PointGreyDetector6IDD("PV_DET", name='det')
+            det = PointGreyDetector("PV_DET", name='det')
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
             #
@@ -386,7 +363,7 @@ class Tomography(Experiment):
         )
         for ang in angs:
             yield from bps.checkpoint()
-            yield from bps.mv(tomostage.aero, ang)
+            yield from bps.mv(tomostage.rot, ang)
             yield from bps.trigger_and_read([det])
 
     @bpp.run_decorator()
@@ -427,8 +404,9 @@ class Tomography(Experiment):
         # unpack devices
         det                 = self.tomo_det
         tomostage           = self.tomo_stage
-        shutter             = self.shutter
-        shutter_suspender   = self.suspend_shutter
+        # TODO: commented for Sim test
+        # shutter             = self.shutter
+        # shutter_suspender   = self.suspend_shutter
         beam                = self.tomo_beam
         
         # load experiment configurations
@@ -438,7 +416,7 @@ class Tomography(Experiment):
         # the following needs to be updated for 6-ID-D
 
         # update the cached motor position in the dict in case exp goes wrong
-        _cahed_position = self.tomo_stage.cache_position()
+        _cached_position = self.tomo_stage.cache_position()
     
         #########################
         ## step 0: preparation ##
@@ -491,12 +469,17 @@ class Tomography(Experiment):
         #   Instead of setting the beam optics, just check the current setup
         #   and print it out for user infomation.
         # current beam size
-        cfg['tomo']['beamsize_h']     = beam.s1.h_size
-        cfg['tomo']['beamsize_v']     = beam.s1.v_size
+
+        # cfg['tomo']['beamsize_h']     = beam.s1.h_size
+        # cfg['tomo']['beamsize_v']     = beam.s1.v_size
+
         # current lenses (proposed...)
-        cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+
+        # cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        
         # current attenuation
-        cdg['tomo']['attenuation']    = beam.att_level
+        # TODO: Commented for Sim testing
+        # cfg['tomo']['attenuation']    = beam.att.att_level
         # check energy? may not be necessary.
 
 
@@ -533,27 +516,36 @@ class Tomography(Experiment):
         
         ###############################################
         ## step 0.9: print out the cfg for user info ##
-        ###############################################     
-        print
+        ############################################### 
+        self.check(cfg)    
 
         @bpp.stage_decorator([det])
         @bpp.run_decorator()
         def scan_closure():
             # TODO:
             #   Somewhere we need to check the light status
-
             # open shutter for beam
-            yield from bps.mv(shutter, 'open')
-            yield from bps.install_suspender(shutter_suspender)
+            if self._mode.lower in ['production']:
+                yield from bps.mv(shutter, 'open')
+                yield from bps.install_suspender(shutter_suspender)
             
             # config output
-            for me in [det.tiff1, det.hdf1]:
-                yield from bps.mv(me.file_path, fp)
-                yield from bps.mv(me.file_name, fn)
-                yield from bps.mv(me.file_write_mode, 2)
-                yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
-                yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
-    
+            if self._mode.lower in ['dryrun','production']:
+                for me in [det.tiff1, det.hdf1]:
+                    yield from bps.mv(me.file_path, fp)
+                    yield from bps.mv(me.file_name, fn)
+                    yield from bps.mv(me.file_write_mode, 2)
+                    yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
+                    yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
+            elif self._mode.lower in ['debug']:
+                for me in [det.tiff1, det.hdf1]:
+                    print('setting file path')
+                    yield from bps.mv(me.file_path, '/data')
+                    yield from bps.mv(me.file_name, fn)
+                    yield from bps.mv(me.file_write_mode, 2)
+                    yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
+                    yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))
+            
             if cfg['output']['type'] in ['tif', 'tiff']:
                 yield from bps.mv(det.tiff1.enable, 1)
                 yield from bps.mv(det.tiff1.capture, 1)
@@ -564,7 +556,8 @@ class Tomography(Experiment):
                 yield from bps.mv(det.hdf1.capture, 1)
             else:
                 raise ValueError(f"Unsupported output type {cfg['output']['type']}")
-    
+                
+            print("start to collect front white")
             # collect front white field
             yield from bps.mv(det.cam.frame_type, 0)  # for HDF5 dxchange data structure
             yield from self.collect_white_field(cfg['tomo'], atfront=True)
@@ -584,8 +577,9 @@ class Tomography(Experiment):
     
             # collect back dark field
             yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
-            yield from bps.remove_suspender(shutter_suspender)
-            yield from bps.mv(shutter, "close")
+            # TODO: commented for Sim test
+            # yield from bps.remove_suspender(shutter_suspender)
+            # yield from bps.mv(shutter, "close")
             yield from self.collect_dark_field(cfg['tomo'])
     
         return (yield from scan_closure())
@@ -593,7 +587,11 @@ class Tomography(Experiment):
     #   summarize_plan with config yml file
     def dryrun(self, scan_config):
         """use summarize_plan for quick analysis"""
-        return summarize_plan(tomo_scan(self, scan_config))
+        return summarize_plan(self.tomo_scan(scan_config))
+
+    def run(self,scan_config):
+        """run tomo_scan with RE"""
+        return self.RE(self.tomo_scan(scan_config))
 
 
 class NearField(Experiment):
@@ -611,13 +609,14 @@ class NearField(Experiment):
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
         # 
-    def check(self):
+    def check(self, cfg):
         """Return user input before run"""
         print(f"NearField configuration:\n{dict_to_msg(cfg['nf'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
 
     def __repr__(self):
         """Return summary of the current experiment status"""
+        """
         beam  = self.nf_beam
         stage = self.nf_stage
         # get the current beamline optics
@@ -637,12 +636,13 @@ class NearField(Experiment):
                         _beamline_status                                       +
                         (f"\nHere are the current motor positions:\n")         +
                         dict_to_msg(stage.position_cached)                     +
-                        (f"\nHere is the current experiment configuration:\n") +
-                        dict_to_msg(cfg['nf'])                                 +
-                        (f"\nHere are the file output info:\n")                +
-                        dict_to_msg(cfg['output'])
+                        (f"\nHere is the current experiment configuration:\n") 
+                        # dict_to_msg(cfg['nf'])                                 +
+                        # (f"\nHere are the file output info:\n")                +
+                        # dict_to_msg(cfg['output'])
                       )
         return _status_msg
+        """
         # TODO:
         #   verbose string representation of the experiment and beamline
         #   status as a dictionary -> yaml 
@@ -655,62 +655,12 @@ class NearField(Experiment):
         elif mode.lower() == 'debug':
             # NOTE:
             #   This is a place holder for maybe additional control of the beam
-            #   in the debug mode.  Let's discuss what should be exposed here.
-            #   Or, we just use some simulated motors for the beam here as below?
-            from ophyd import sim
-            from ophyd import MotorBundle
-            #   simulated nfbeam motor bundle.  This part need FIX!!!
-            beam            = MotorBundle(name='beam')
-            #   Upstream slit, slit1
-            beam.s1         = MotorBundle(name='s1')
-            beam.s1.h_ib    = sim.SynAxis(name='h_ib')
-            beam.s1.h_ob    = sim.SynAxis(name='h_ob')
-            beam.s1.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            beam.s1.v_tp    = sim.SynAxis(name='v_tp')
-            beam.s1.v_bt    = sim.SynAxis(name='v_bt')
-            beam.s1.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
-            #   Downstream slit, slit2
-            beam.s2         = MotorBundle(name='s2')
-            beam.s2.h_ib    = sim.SynAxis(name='h_ib')
-            beam.s2.h_ob    = sim.SynAxis(name='h_ob')
-            beam.s2.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            beam.s2.v_tp    = sim.SynAxis(name='v_tp')
-            beam.s2.v_bt    = sim.SynAxis(name='v_bt')
-            beam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
-            #   Focus lens 1
-            beam.l1         = MotorBundle(name='l1')
-            # beam.l1.l1x     = sim.SynAxis(name='l1x')
-            beam.l1.l1y     = sim.SynAxis(name='l1y')
-            # beam.l1.l1z     = sim.SynAxis(name='l1z')
-            # beam.l1.l1rot   = sim.SynAxis(name='l1rot')
-            # beam.l1.l1tx    = sim.SynAxis(name='l1tx')
-            # beam.l1.l1tz    = sim.SynAxis(name='l1tz')
-            #   Focus lens 2
-            beam.l2         = MotorBundle(name='l2')
-            # beam.l2.l1x     = sim.SynAxis(name='l2x')
-            beam.l2.l1y     = sim.SynAxis(name='l2y')
-            # beam.l2.l1z     = sim.SynAxis(name='l2z')
-            # beam.l2.l1rot   = sim.SynAxis(name='l2rot')
-            # beam.l2.l1tx    = sim.SynAxis(name='l2tx')
-            # beam.l2.l1tz    = sim.SynAxis(name='l2tz')
-            #   Focus lens 3
-            beam.l3         = MotorBundle(name='l3')
-            # beam.l3.l1x     = sim.SynAxis(name='l3x')
-            beam.l3.l1y     = sim.SynAxis(name='l3y')
-            # beam.l3.l1z     = sim.SynAxis(name='l3z')
-            # beam.l3.l1rot   = sim.SynAxis(name='l3rot')
-            # beam.l3.l1tx    = sim.SynAxis(name='l3tx')
-            # beam.l3.l1tz    = sim.SynAxis(name='l3tz')
-            #   Focus lens 4
-            beam.l4         = MotorBundle(name='l4')
-            # beam.l4.l1x     = sim.SynAxis(name='l4x')
-            beam.l4.l1y     = sim.SynAxis(name='l4y')
-            # beam.l4.l1z     = sim.SynAxis(name='l4z')
-            # beam.l4.l1rot   = sim.SynAxis(name='l4rot')
-            # beam.l4.l1tx    = sim.SynAxis(name='l4tx')
-            # beam.l4.l1tz    = sim.SynAxis(name='l4tz')
-
-            return beam
+            #   simulated tomobeam from the virtual beamline
+            #   dumped all the simulated beam control to m16
+            beam = SimBeam()
+        else:
+            raise ValueError(f"Invalide mode -> {mode}")
+        return beam    
 
     @staticmethod
     def get_nfstage(mode):
@@ -718,25 +668,7 @@ class NearField(Experiment):
         if mode.lower() in ['dryrun', 'production']:
             nfstage = StageAero(name='nfstage')
         elif mode.lower() == 'debug':
-            # NOTE:
-            #    Moving a synthetic motor will lead to some really strange
-            #    issue.  This could be related to the API change in the
-            #    synAxis.
-            from ophyd import sim
-            from ophyd import MotorBundle
-            nfstage         = MotorBundle(name="nfstage")
-            nfstage.kx      = sim.SynAxis(name='kx')
-            nfstage.ky      = sim.SynAxis(name='ky')
-            nfstage.kz      = sim.SynAxis(name='kz')
-            nfstage.kx_tilt = sim.SynAxis(name='kx_tilt')
-            nfstage.kz_tilt = sim.SynAxis(name='kz_tilt')
-
-            nfstage.rot    = sim.SynAxis(name='rot')
-
-            nfstage.x_base  = sim.SynAxis(name='x_base')
-            nfstage.y_base  = sim.SynAxis(name='y_base')
-            nfstage.z_base  = sim.SynAxis(name='z_base')
-            
+            nfstage = SimStageAero(name='nfstage') 
         else:
             raise ValueError(f"Invalide mode -> {mode}")
         return nfstage
@@ -755,12 +687,33 @@ class NearField(Experiment):
 
     @staticmethod
     def get_detector(mode):
+        # TODO: implement real PVs
         if mode.lower() == 'debug':
-            # TODO: need better simulated detectors
-            from ophyd import sim
-            det = sim.noisy_det
+            det = SimDetector("6iddSIMDET1:", name='det')
+
+            epics.caput("6iddSIMDET1:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType.THST", "/exchange/data_dark")
+            # ophyd need this configuration
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            # set the layout file for cam
+            # TODO:  need to udpate with acutal config files for 6-ID-D
+            _current_fp = str(pathlib.Path(__file__).parent.absolute())
+            _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+            _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.hdf1.xml_file_name.put(_layout_fp)
+            # turn off the problematic auto setting in cam
+            det.cam.auto_exposure_auto_mode.put(0)  
+            det.cam.sharpness_auto_mode.put(0)
+            det.cam.gain_auto_mode.put(0)
+            det.cam.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
-            det = PointGreyDetector6IDD("PV_DET", name='det')
+            det = PointGreyDetector("PV_DET", name='det')
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
             #
@@ -836,46 +789,6 @@ class NearField(Experiment):
         yield from bps.abs_set(psofly.fly, "Fly", group='fly')
         yield from bps.wait(group='fly')
 
-    @bpp.stage_decorator([det])         
-    @bpp.run_decorator()
-    def scan_singlelayer(self, cfg_nf, _layer_number):
-        # TODO:
-        #   Somewhere we need to check the light status, or, add a suspender?
-        # config output
-        # currently set up to output 1 HDF5 file for each NF layer, including 2 det positions
-        for me in [det.tiff1, det.hdf1]:
-            yield from bps.mv(me.file_path, fp)
-            yield from bps.mv(me.file_name, '{}_layer{:06d}'.format(fn, _layer_number))
-            yield from bps.mv(me.file_write_mode, 2)
-            yield from bps.mv(me.num_capture, cfg['nf']['total_images']*2)       # *2 for two det positions
-            yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
-
-        if cfg['output']['type'] in ['tif', 'tiff']:
-            yield from bps.mv(det.tiff1.enable, 1)
-            yield from bps.mv(det.tiff1.capture, 1)
-            yield from bps.mv(det.hdf1.enable, 0)
-        elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
-            yield from bps.mv(det.tiff1.enable, 0)
-            yield from bps.mv(det.hdf1.enable, 1)
-            yield from bps.mv(det.hdf1.capture, 1)
-        else:
-            raise ValueError(f"Unsupported output type {cfg['output']['type']}")
-
-        #  TODO:
-        #   Add FS control here to toggle the FS or Main Shutter?
-
-        # collect projections in the current layer in the FIRST det z position
-        yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
-        yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z1']) # need actual motor
-        yield from self.fly_scan(cfg['nf'])
-
-        # collect projections in the current layer in the SECOND det z position
-        yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z2']) # need actual motor
-        yield from self.fly_scan(cfg['nf'])
-        
-        #  TODO:
-        #   Add FS control here to close the FS or Main Shutter?
-
     def nf_scan(self, cfg):
         """
         NearField scan plan based on given configuration
@@ -894,7 +807,7 @@ class NearField(Experiment):
         # the following needs to be updated for 6-ID-D
 
         # update the cached motor position in the dict in case exp goes wrong
-        _cahed_position = self.nf_stage.cache_position()
+        _cached_position = self.nf_stage.cache_position()
     
         #########################
         ## step 0: preparation ##
@@ -949,7 +862,8 @@ class NearField(Experiment):
         # current lenses (proposed...)
         cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
         # current attenuation
-        cdg['nf']['attenuation']    = beam.att_level
+        # TODO: commented for Sim testing
+        # cfg['nf']['attenuation']    = beam.att.att_level
         # check energy? may not be necessary.
 
         # TODO:
@@ -984,7 +898,51 @@ class NearField(Experiment):
         
         ## Ideally, we set up the FS control once, then the FS will be controlled with
         ## intended signals
-        
+    
+        #########################################
+        ##  Function for NF Single Layer Scan  ##
+        #########################################
+
+        @bpp.stage_decorator([det])         
+        @bpp.run_decorator()
+        def scan_singlelayer(self, cfg_nf, _layer_number):
+            # TODO:
+            #   Somewhere we need to check the light status, or, add a suspender?
+            # config output
+            # currently set up to output 1 HDF5 file for each NF layer, including 2 det positions
+            for me in [det.tiff1, det.hdf1]:
+                yield from bps.mv(me.file_path, fp)
+                yield from bps.mv(me.file_name, '{}_layer{:06d}'.format(fn, _layer_number))
+                yield from bps.mv(me.file_write_mode, 2)
+                yield from bps.mv(me.num_capture, cfg['nf']['total_images']*2)       # *2 for two det positions
+                yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
+
+            if cfg['output']['type'] in ['tif', 'tiff']:
+                yield from bps.mv(det.tiff1.enable, 1)
+                yield from bps.mv(det.tiff1.capture, 1)
+                yield from bps.mv(det.hdf1.enable, 0)
+            elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
+                yield from bps.mv(det.tiff1.enable, 0)
+                yield from bps.mv(det.hdf1.enable, 1)
+                yield from bps.mv(det.hdf1.capture, 1)
+            else:
+                raise ValueError(f"Unsupported output type {cfg['output']['type']}")
+
+            #  TODO:
+            #   Add FS control here to toggle the FS or Main Shutter?
+
+            # collect projections in the current layer in the FIRST det z position
+            yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z1']) # need actual motor
+            yield from self.fly_scan(cfg['nf'])
+
+            # collect projections in the current layer in the SECOND det z position
+            yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z2']) # need actual motor
+            yield from self.fly_scan(cfg['nf'])
+            
+            #  TODO:
+            #   Add FS control here to close the FS or Main Shutter?
+
         ############################
         ## Near Field Volume Scan ##
         ############################
@@ -994,23 +952,23 @@ class NearField(Experiment):
         if ky_step == 0:
             # To repeat the current layer for n_layer times
             # !!! The layer/file number will still increase for this same layer
-            _scan_positions = np.arange(1, n_layers+1), 1)
-            for _layer_number_count in _scan_position:
+            _scan_positions = np.arange(1, n_layers+1, 1)
+            for _layer_number_count in _scan_positions:
                 yield from bps.mv(stage.ky, ky_start)
-                yield from scan_singlelayer(cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
         # For regular scans
         elif ky_step != 0:
             _layer_number_count  = 1
             _scan_positions = np.arange(ky_start, ky_start+(n_layers-0.5)*ky_step, ky_step)
-            for _current_scan_ky in _scan_position:
+            for _current_scan_ky in _scan_positions:
                 yield from bps.mv(stage.ky, _current_scan_ky)
-                yield from scan_singlelayer(cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
                 _layer_number_count += 1
 
     #   summarize_plan with config yml file
     def dryrun(self, scan_config):
         """use summarize_plan for quick analysis"""
-        return summarize_plan(nf_scan(self, scan_config))
+        return summarize_plan(self.nf_scan(scan_config))
 
 
 class FarField(Experiment):
@@ -1029,13 +987,14 @@ class FarField(Experiment):
         # a cached/lookup table
         # 
     
-    def check(self):
+    def check(self, cfg):
         """Return user input before run"""
         print(f"FarField configuration:\n{dict_to_msg(cfg['ff'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
 
     def __repr__(self):
         """Return summary of the current experiment status"""
+        """
         beam  = self.ff_beam
         stage = self.ff_stage
         # get the current beamline optics
@@ -1055,106 +1014,39 @@ class FarField(Experiment):
                         _beamline_status                                       +
                         (f"\nHere are the current motor positions:\n")         +
                         dict_to_msg(stage.position_cached)                     +
-                        (f"\nHere is the current experiment configuration:\n") +
-                        dict_to_msg(cfg['ff'])                                 +
-                        (f"\nHere are the file output info:\n")                +
-                        dict_to_msg(cfg['output'])
+                        (f"\nHere is the current experiment configuration:\n") 
+                        # dict_to_msg(cfg['ff'])                                 +
+                        # (f"\nHere are the file output info:\n")                +
+                        # dict_to_msg(cfg['output'])
                       )
         return _status_msg
         # TODO:
         #   verbose string representation of the experiment and beamline
         #   status as a dictionary -> yaml 
-    
+        """
+
     @staticmethod
     def get_ffbeam(mode):
         """return FFbeam based on given mode"""
         if mode.lower() in ['dryrun', 'production']:
             beam = Beam()
         elif mode.lower() == 'debug':
-            # NOTE:
+             # NOTE:
             #   This is a place holder for maybe additional control of the beam
-            #   in the debug mode.  Let's discuss what should be exposed here.
-            #   Or, we just use some simulated motors for the beam here as below?
-            from ophyd import sim
-            from ophyd import MotorBundle
-            #   simulated nfbeam motor bundle.  This part need FIX!!!
-            beam            = MotorBundle(name='beam')
-            #   Upstream slit, slit1
-            beam.s1         = MotorBundle(name='s1')
-            beam.s1.h_ib    = sim.SynAxis(name='h_ib')
-            beam.s1.h_ob    = sim.SynAxis(name='h_ob')
-            beam.s1.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            beam.s1.v_tp    = sim.SynAxis(name='v_tp')
-            beam.s1.v_bt    = sim.SynAxis(name='v_bt')
-            beam.s1.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
-            #   Downstream slit, slit2
-            beam.s2         = MotorBundle(name='s2')
-            beam.s2.h_ib    = sim.SynAxis(name='h_ib')
-            beam.s2.h_ob    = sim.SynAxis(name='h_ob')
-            beam.s2.h_size  = sim.SynAxis(name='h_size')        ### need checking!!
-            beam.s2.v_tp    = sim.SynAxis(name='v_tp')
-            beam.s2.v_bt    = sim.SynAxis(name='v_bt')
-            beam.s2.v_size  = sim.SynAxis(name='v_size')        ### need checking!!
-            #   Focus lens 1
-            beam.l1         = MotorBundle(name='l1')
-            # beam.l1.l1x     = sim.SynAxis(name='l1x')
-            beam.l1.l1y     = sim.SynAxis(name='l1y')
-            # beam.l1.l1z     = sim.SynAxis(name='l1z')
-            # beam.l1.l1rot   = sim.SynAxis(name='l1rot')
-            # beam.l1.l1tx    = sim.SynAxis(name='l1tx')
-            # beam.l1.l1tz    = sim.SynAxis(name='l1tz')
-            #   Focus lens 2
-            beam.l2         = MotorBundle(name='l2')
-            # beam.l2.l1x     = sim.SynAxis(name='l2x')
-            beam.l2.l1y     = sim.SynAxis(name='l2y')
-            # beam.l2.l1z     = sim.SynAxis(name='l2z')
-            # beam.l2.l1rot   = sim.SynAxis(name='l2rot')
-            # beam.l2.l1tx    = sim.SynAxis(name='l2tx')
-            # beam.l2.l1tz    = sim.SynAxis(name='l2tz')
-            #   Focus lens 3
-            beam.l3         = MotorBundle(name='l3')
-            # beam.l3.l1x     = sim.SynAxis(name='l3x')
-            beam.l3.l1y     = sim.SynAxis(name='l3y')
-            # beam.l3.l1z     = sim.SynAxis(name='l3z')
-            # beam.l3.l1rot   = sim.SynAxis(name='l3rot')
-            # beam.l3.l1tx    = sim.SynAxis(name='l3tx')
-            # beam.l3.l1tz    = sim.SynAxis(name='l3tz')
-            #   Focus lens 4
-            beam.l4         = MotorBundle(name='l4')
-            # beam.l4.l1x     = sim.SynAxis(name='l4x')
-            beam.l4.l1y     = sim.SynAxis(name='l4y')
-            # beam.l4.l1z     = sim.SynAxis(name='l4z')
-            # beam.l4.l1rot   = sim.SynAxis(name='l4rot')
-            # beam.l4.l1tx    = sim.SynAxis(name='l4tx')
-            # beam.l4.l1tz    = sim.SynAxis(name='l4tz')
-
-            return beam
+            #   simulated tomobeam from the virtual beamline
+            #   dumped all the simulated beam control to m16
+            beam = SimBeam()
+        else:
+            raise ValueError(f"Invalide mode -> {mode}")
+        return beam
 
     @staticmethod
     def get_ffstage(mode):
         """return nfstage based on given mode"""
         if mode.lower() in ['dryrun', 'production']:
-            ffstage = StageAero(name='nfstage')
+            ffstage = StageAero(name='ffstage')
         elif mode.lower() == 'debug':
-            # NOTE:
-            #    Moving a synthetic motor will lead to some really strange
-            #    issue.  This could be related to the API change in the
-            #    synAxis.
-            from ophyd import sim
-            from ophyd import MotorBundle
-            ffstage         = MotorBundle(name="nfstage")
-            ffstage.kx      = sim.SynAxis(name='kx')
-            ffstage.ky      = sim.SynAxis(name='ky')
-            ffstage.kz      = sim.SynAxis(name='kz')
-            ffstage.kx_tilt = sim.SynAxis(name='kx_tilt')
-            ffstage.kz_tilt = sim.SynAxis(name='kz_tilt')
-
-            ffstage.rot    = sim.SynAxis(name='rot')
-
-            ffstage.x_base  = sim.SynAxis(name='x_base')
-            ffstage.y_base  = sim.SynAxis(name='y_base')
-            ffstage.z_base  = sim.SynAxis(name='z_base')
-            
+            ffstage = SimStageAero(name='ffstage')
         else:
             raise ValueError(f"Invalide mode -> {mode}")
         return ffstage
@@ -1173,14 +1065,35 @@ class FarField(Experiment):
 
     @staticmethod
     def get_detector(mode):
+        # TODO: implement real PVs
         if mode.lower() == 'debug':
-            # TODO: need better simulated detectors
-            from ophyd import sim
-            det = sim.noisy_det
+            det = SimDetector("6iddSIMDET1:", name='det')
+
+            epics.caput("6iddSIMDET1:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType.THST", "/exchange/data_dark")
+            # ophyd need this configuration
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            # set the layout file for cam
+            # TODO:  need to udpate with acutal config files for 6-ID-D
+            _current_fp = str(pathlib.Path(__file__).parent.absolute())
+            _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+            _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.hdf1.xml_file_name.put(_layout_fp)
+            # turn off the problematic auto setting in cam
+            det.cam.auto_exposure_auto_mode.put(0)  
+            det.cam.sharpness_auto_mode.put(0)
+            det.cam.gain_auto_mode.put(0)
+            det.cam.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             ### TODO:
             ###     Need to get have the Dexela configured in Devices.py
-            det = DexelaDetectorCam6IDD("PV_DET", name='det')
+            det = DexelaDetector("PV_DET", name='det')
             """
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
@@ -1259,7 +1172,7 @@ class FarField(Experiment):
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.reset_filter, 1)
-        yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+        yield from bps.mv(det.proc1.num_filter, cfg_ff['n_frames'])
    
         angs = np.arange(
             cfg_ff['omega_start'], 
@@ -1268,7 +1181,7 @@ class FarField(Experiment):
         )
         for ang in angs:
             yield from bps.checkpoint()
-            yield from bps.mv(ffstage.aero, ang)
+            yield from bps.mv(ffstage.rot, ang)
             yield from bps.trigger_and_read([det])   ### Why is this [det] instead of det?  /JasonZ
 
     @bpp.run_decorator()
@@ -1307,61 +1220,6 @@ class FarField(Experiment):
         yield from bps.abs_set(psofly.fly, "Fly", group='fly')
         yield from bps.wait(group='fly')
 
-    @bpp.stage_decorator([det])         
-    @bpp.run_decorator()
-    def scan_singlelayer(self, cfg_ff, _layer_number):
-        # TODO:
-        #   Somewhere we need to check the light status, or, add a suspender?
-        # config output
-        for me in [det.tiff1, det.hdf1]:
-            yield from bps.mv(me.file_path, fp)
-            yield from bps.mv(me.file_name, '{}_layer{:06d}'.format(fn, _layer_number))
-            yield from bps.mv(me.file_write_mode, 2)
-            yield from bps.mv(me.num_capture, cfg['ff'['total_images'])     
-            yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
-
-        if cfg['output']['type'] in ['tif', 'tiff']:
-            yield from bps.mv(det.tiff1.enable, 1)
-            yield from bps.mv(det.tiff1.capture, 1)
-            yield from bps.mv(det.hdf1.enable, 0)
-        elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
-            yield from bps.mv(det.tiff1.enable, 0)
-            yield from bps.mv(det.hdf1.enable, 1)
-            yield from bps.mv(det.hdf1.capture, 1)
-        else:
-            raise ValueError(f"Unsupported output type {cfg['output']['type']}")
-
-        #  TODO:
-        #   Add FS control here to toggle the FS or Main Shutter?
-
-        # collect front dark field
-        yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
-        yield from bps.remove_suspender(shutter_suspender)
-        yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
-        yield from self.collect_dark_field(cfg['ff'])
-
-        ### NOTE: the main shutter may be closed after dark field!!!
-
-        # collect projections in the current layer in the det z position
-        # Let's discussed if we want det z control during scans
-        yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
-        if cfg['ff']['type'].lower() == 'step':
-            yield from self.step_scan(cfg['ff'])
-        elif cfg['ff']['type'].lower() == 'fly':
-            # yield from bps.mv(det.cam.position, cfg_ff['detector_z_position']['ff_z1']) # need actual motor
-            yield from self.fly_scan(cfg['nf'])
-        else:
-            raise ValueError(f"Unsupported scan type: {cfg['ff']['type']}")
-
-        # collect back dark field
-        yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
-        yield from bps.remove_suspender(shutter_suspender)
-        yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
-        yield from self.collect_dark_field(cfg['ff'])
-        
-        #  TODO:
-        #   Add FS control here to close the FS or Main Shutter?
-
     def ff_scan(self, cfg):
         """
         FarField scan plan based on given configuration
@@ -1380,7 +1238,7 @@ class FarField(Experiment):
         # the following needs to be updated for 6-ID-D
 
         # update the cached motor position in the dict in case exp goes wrong
-        _cahed_position = self.ff_stage.cache_position()
+        _cached_position = self.ff_stage.cache_position()
     
         #########################
         ## step 0: preparation ##
@@ -1436,7 +1294,8 @@ class FarField(Experiment):
         # current lenses (proposed...)
         cfg['ff']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
         # current attenuation
-        cdg['ff']['attenuation']    = beam.att_level
+        # TODO: att_level commented out for Sim test
+        # cfg['ff']['attenuation']    = beam.att.att_level
         # check energy? may not be necessary.
 
         
@@ -1478,7 +1337,66 @@ class FarField(Experiment):
         
         ## Ideally, we set up the FS control once, then the FS will be controlled with
         ## intended signals
-        
+
+        #########################################
+        ##  Function for FF Single Layer Scan  ##
+        #########################################
+
+        @bpp.stage_decorator([det])         
+        @bpp.run_decorator()
+        def scan_singlelayer(self, cfg_ff, _layer_number):
+            # TODO:
+            #   Somewhere we need to check the light status, or, add a suspender?
+            # config output
+            for me in [det.tiff1, det.hdf1]:
+                yield from bps.mv(me.file_path, fp)
+                yield from bps.mv(me.file_name, '{}_layer{:06d}'.format(fn, _layer_number))
+                yield from bps.mv(me.file_write_mode, 2)
+                yield from bps.mv(me.num_capture, cfg['ff']['total_images'])     
+                yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
+
+            if cfg['output']['type'] in ['tif', 'tiff']:
+                yield from bps.mv(det.tiff1.enable, 1)
+                yield from bps.mv(det.tiff1.capture, 1)
+                yield from bps.mv(det.hdf1.enable, 0)
+            elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
+                yield from bps.mv(det.tiff1.enable, 0)
+                yield from bps.mv(det.hdf1.enable, 1)
+                yield from bps.mv(det.hdf1.capture, 1)
+            else:
+                raise ValueError(f"Unsupported output type {cfg['output']['type']}")
+
+            #  TODO:
+            #   Add FS control here to toggle the FS or Main Shutter?
+
+            # collect front dark field
+            yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
+            yield from bps.remove_suspender(shutter_suspender)
+            yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
+            yield from self.collect_dark_field(cfg['ff'])
+
+            ### NOTE: the main shutter may be closed after dark field!!!
+
+            # collect projections in the current layer in the det z position
+            # Let's discussed if we want det z control during scans
+            yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
+            if cfg['ff']['type'].lower() == 'step':
+                yield from self.step_scan(cfg['ff'])
+            elif cfg['ff']['type'].lower() == 'fly':
+                # yield from bps.mv(det.cam.position, cfg_ff['detector_z_position']['ff_z1']) # need actual motor
+                yield from self.fly_scan(cfg['nf'])
+            else:
+                raise ValueError(f"Unsupported scan type: {cfg['ff']['type']}")
+
+            # collect back dark field
+            yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
+            yield from bps.remove_suspender(shutter_suspender)
+            yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
+            yield from self.collect_dark_field(cfg['ff'])
+            
+            #  TODO:
+            #   Add FS control here to close the FS or Main Shutter?
+
         ###########################
         ## Far Field Volume Scan ##
         ###########################
@@ -1489,17 +1407,17 @@ class FarField(Experiment):
         if ky_step == 0:
             # To repeat the current layer for n_layer times
             # !!! The layer/file number will still increase for this same layer
-            _scan_positions = np.arange(1, n_layers+1), 1)
-            for _layer_number_count in _scan_position:
+            _scan_positions = np.arange(1, n_layers+1, 1)
+            for _layer_number_count in _scan_positions:
                 yield from bps.mv(stage.ky, ky_start)
-                yield from scan_singlelayer(cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
         # For regular scans
         elif ky_step != 0:
             _layer_number_count  = 1
             _scan_positions = np.arange(ky_start, ky_start+(n_layers-0.5)*ky_step, ky_step)
-            for _current_scan_ky in _scan_position:
+            for _current_scan_ky in _scan_positions:
                 yield from bps.mv(stage.ky, _current_scan_ky)
-                yield from scan_singlelayer(cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
                 _layer_number_count += 1
 
         # TODO:
@@ -1509,7 +1427,7 @@ class FarField(Experiment):
     #   summarize_plan with config yml file
     def dryrun(self, scan_config):
         """use summarize_plan for quick analysis"""
-        return summarize_plan(ff_scan(self, scan_config))
+        return summarize_plan(self.ff_scan(scan_config))
 
 
 if __name__ == "__main__":
