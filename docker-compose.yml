@@ -26,7 +26,8 @@ services:
       - "5065"
     depends_on:
       - caRepeat
-    volumes:  
+    volumes:
+      - .:/home/jupyter-ht-hedm 
       - ./vbdata/data:/data
       - ./vbdata/db:/db
   
