@@ -89,7 +89,7 @@ class FocusLens4(MotorBundle):
     # l4tz    =   Component(EpicsMotor, "PV_lens4_tiltz",     name='l4tz'     )
 
 
-class Attenuator:
+class Attenuator():
     """Attenuator control"""
 
     # TODO:
@@ -115,6 +115,8 @@ class Attenuator:
     #
     # TODO:
     #  class level lookup table to map att_level to attenuation
+    
+    
     _att_level_spreadsheet = {
         0   :   0     ,
         1   :   50    ,
@@ -171,6 +173,9 @@ class Attenuator:
     def attenuation(self):
         return _att_level_spreadsheet[self._att_level]
 
+
+    
+
     # def get_attenuation(self):
     #     current_atten = atten[self.attenuator.position]
     #     return (current_atten)
@@ -187,19 +192,19 @@ class Attenuator:
     # pass
 
 
-class Beam:
+class Beam():
     """Provide full control of the beam."""
 
     #   I'm not quite sure if it is safe to do all this here. /JasonZ
     def __init__(self):
-        self.s1         = SlitUpstream()
-        self.s2         = SlitDownstream()
+        self.s1         = SlitUpstream(name='s1')
+        self.s2         = SlitDownstream(name='s2')
         # consider only get the y motors
         # self.l1y = Component(EpicsMotor, "PV_lens1_y",         name='l1y'      )
-        self.l1         = FocusLens1()
-        self.l2         = FocusLens2()
-        self.l3         = FocusLens3()
-        self.l4         = FocusLens4()
+        self.l1         = FocusLens1(name='l1')
+        self.l2         = FocusLens2(name='l2')
+        self.l3         = FocusLens3(name='l3')
+        self.l4         = FocusLens4(name='l4')
         self.att        = Attenuator()
         self.foil       = EnergyFoil()         # may need to do the energy calibration outside Beam, manually
 
@@ -210,7 +215,7 @@ class Beam:
         #   current att level and attenuation
         #   beam energy
 
-    # __repr__ to be implemented
+        # __repr__ to be implemented
 
     @property
     def status(self):
@@ -228,10 +233,89 @@ class Beam:
         #   Seems like we don't need this any more
         pass
 
-    
 
 
-class EnergyFoil:
+class SimBeam():
+    """Provide full control of the beam."""
+
+    #   I'm not quite sure if it is safe to do all this here. /JasonZ
+    def __init__(self):
+        #   Upstream slit, slit1
+        self.s1         = MotorBundle(name='s1')
+        self.s1.h_ib    = Component(EpicsMotor, "6iddSIM:m16", name='h_ib')
+        self.s1.h_ob    = Component(EpicsMotor, "6iddSIM:m16", name='h_ob')
+        self.s1.h_size  = Component(EpicsMotor, "6iddSIM:m16", name='h_size')        ### need checking!!
+        self.s1.v_tp    = Component(EpicsMotor, "6iddSIM:m16", name='v_tp')
+        self.s1.v_bt    = Component(EpicsMotor, "6iddSIM:m16", name='v_bt')
+        self.s1.v_size  = Component(EpicsMotor, "6iddSIM:m16", name='v_size')        ### need checking!!
+        #   Downstream slit, slit2
+        self.s2         = MotorBundle(name='s2')
+        self.s2.h_ib    = Component(EpicsMotor, "6iddSIM:m16", name='h_ib')
+        self.s2.h_ob    = Component(EpicsMotor, "6iddSIM:m16", name='h_ob')
+        self.s2.h_size  = Component(EpicsMotor, "6iddSIM:m16", name='h_size')        ### need checking!!
+        self.s2.v_tp    = Component(EpicsMotor, "6iddSIM:m16", name='v_tp')
+        self.s2.v_bt    = Component(EpicsMotor, "6iddSIM:m16", name='v_bt')
+        self.s2.v_size  = Component(EpicsMotor, "6iddSIM:m16", name='v_size')        ### need checking!!
+        #   Focus lens 1
+        self.l1         = MotorBundle(name='l1')
+        # self.l1.l1x     = Component(EpicsMotor, "6iddSIM:m16", name='l1x')
+        self.l1.l1y     = Component(EpicsMotor, "6iddSIM:m16", name='l1y')
+        # self.l1.l1z     = Component(EpicsMotor, "6iddSIM:m16", name='l1z')
+        # self.l1.l1rot   = Component(EpicsMotor, "6iddSIM:m16", name='l1rot')
+        # self.l1.l1tx    = Component(EpicsMotor, "6iddSIM:m16", name='l1tx')
+        # self.l1.l1tz    = Component(EpicsMotor, "6iddSIM:m16", name='l1tz')
+        #   Focus lens 2
+        self.l2         = MotorBundle(name='l2')
+        # self.l2.l1x     = Component(EpicsMotor, "6iddSIM:m16", name='l2x')
+        self.l2.l1y     = Component(EpicsMotor, "6iddSIM:m16", name='l2y')
+        # self.l2.l1z     = Component(EpicsMotor, "6iddSIM:m16", name='l2z')
+        # self.l2.l1rot   = Component(EpicsMotor, "6iddSIM:m16", name='l2rot')
+        # self.l2.l1tx    = Component(EpicsMotor, "6iddSIM:m16", name='l2tx')
+        # self.l2.l1tz    = Component(EpicsMotor, "6iddSIM:m16", name='l2tz')
+        #   Focus lens 3
+        self.l3         = MotorBundle(name='l3')
+        # self.l3.l1x     = Component(EpicsMotor, "6iddSIM:m16", name='l3x')
+        self.l3.l1y     = Component(EpicsMotor, "6iddSIM:m16", name='l3y')
+        # self.l3.l1z     = Component(EpicsMotor, "6iddSIM:m16", name='l3z')
+        # self.l3.l1rot   = Component(EpicsMotor, "6iddSIM:m16", name='l3rot')
+        # self.l3.l1tx    = Component(EpicsMotor, "6iddSIM:m16", name='l3tx')
+        # self.l3.l1tz    = Component(EpicsMotor, "6iddSIM:m16", name='l3tz')
+        #   Focus lens 4
+        self.l4         = MotorBundle(name='l4')
+        # self.l4.l1x     = Component(EpicsMotor, "6iddSIM:m16", name='l4x')
+        self.l4.l1y     = Component(EpicsMotor, "6iddSIM:m16", name='l4y')
+        # self.l4.l1z     = Component(EpicsMotor, "6iddSIM:m16", name='l4z')
+        # self.l4.l1rot   = Component(EpicsMotor, "6iddSIM:m16", name='l4rot')
+        # self.l4.l1tx    = Component(EpicsMotor, "6iddSIM:m16", name='l4tx')
+        # self.l4.l1tz    = Component(EpicsMotor, "6iddSIM:m16", name='l4tz')
+
+    def __repr__(self):
+        """Return the current beam status"""
+        #   slits sizes and positions
+        #   ic readings? maybe
+        #   current att level and attenuation
+        #   beam energy
+
+        # __repr__ to be implemented
+
+    @property
+    def status(self):
+        """Return full beam status"""
+        #   Some info to print here:
+        #       beam energy, wavelength etc.
+        #       slit posiitons, beam size (H&V), actual beam size (on detector?)
+        #       beam intensity, IC readings
+        #       attenuation used etc.
+        pass
+
+    @property
+    def center(self):
+        """return estimated center based on slits positions"""
+        #   Seems like we don't need this any more
+        pass    
+
+
+class EnergyFoil():
     """Energy foil"""
     # TODO:
     #   Requir acutal implementation once the nature of the device is known
