@@ -5,7 +5,7 @@ metadatastore:
    module: 'databroker.headersource.mongo'
    class: 'MDS'
    config:
-       host: 'mongodb'
+       host: 'mongo'
        port: 27017
        database: 'metadatastore-production-v1'
        timezone: 'US/Central'
@@ -13,6 +13,6 @@ assets:
    module: 'databroker.assets.mongo'
    class: 'Registry'
    config:
-       host: 'mongodb'
+       host: 'mongo'
        port: 27017
        database: 'filestore-production-v1'

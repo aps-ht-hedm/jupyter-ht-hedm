@@ -92,7 +92,6 @@ services:
     container_name: mongoDB
     restart: always
     image: mongo
-    hostname: mongodb
     networks: 
       - vn6idd
     ports:
