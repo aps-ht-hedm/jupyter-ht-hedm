@@ -96,7 +96,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - ./vbdata/db:/db
+      - ./vbdata/db:/data/db
 
   frontend:
     container_name: jupyterlab
