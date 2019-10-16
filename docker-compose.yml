@@ -26,6 +26,9 @@ services:
       - "5065"
     depends_on:
       - caRepeat
+    volumes:  
+      - ./vbdata/data:/data
+      - ./vbdata/db:/db
   
   ioc6iddsimdet:
     container_name: ioc6iddsimdet
@@ -42,6 +45,9 @@ services:
       - "5065"
     depends_on:
       - caRepeat
+    volumes:  
+      - ./vbdata/data:/data
+      - ./vbdata/db:/db
   
   console:
     container_name: console
@@ -56,6 +62,9 @@ services:
       - caRepeat
       - ioc6iddsimdet
       - ioc6iddsimmtr
+    volumes:  
+      - ./vbdata/data:/data
+      - ./vbdata/db:/db
   
   vnc:
     container_name: vnc
@@ -74,7 +83,10 @@ services:
       - caRepeat
       - ioc6iddsimdet
       - ioc6iddsimmtr
-  
+    volumes:  
+      - ./vbdata/data:/data
+      - ./vbdata/db:/db
+    
   mongo:
     container_name: mongoDB
     restart: always
@@ -83,6 +95,8 @@ services:
       - vn6idd
     ports:
       - "27017:27017"
+    volumes:
+      - ./vbdata/db:/db
 
   frontend:
     container_name: jupyterlab
@@ -106,6 +120,7 @@ services:
       - ioc6iddsimmtr
     volumes:
       - .:/home/jupyter-ht-hedm  
+      - ./vbdata/data:/data
 
 networks:
   vn6idd:
