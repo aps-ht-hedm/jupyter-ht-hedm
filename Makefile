@@ -1,7 +1,7 @@
 # Easy control for starting and stopping virtual beamline
 
 # ----- Targets ----- #
-.PHONY: vbstart vbstop list clean
+.PHONY: vbstart vbdown list clean
 
 vbstart:
 	mkdir -p vbdata
@@ -9,7 +9,7 @@ vbstart:
 	mkdir -p vbdata/db
 	docker-compose up -d
 
-vbstop:
+vbdown:
 	docker-compose down
 
 clean:
