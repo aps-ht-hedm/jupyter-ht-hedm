@@ -35,8 +35,8 @@ class Experiment:
     def __init__(self, mode='debug'):
         self.RE = bluesky.RunEngine({})
         # TODO: commented out for virtual beamline testing
-        #self.db = databroker.Broker.named("mongodb_config")
-        #self.RE.subscribe(self.db.insert)
+        self.db = databroker.Broker.named("mongodb_config")
+        self.RE.subscribe(self.db.insert)
         self.RE.subscribe(BestEffortCallback())
 
         self._mode   = mode
