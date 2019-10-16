@@ -281,7 +281,6 @@ class Tomography(Experiment):
         return det
 
     # ----- pre-defined scan plans starts from here
-    @bpp.run_decorator()
     def collect_white_field(self, cfg_tomo, atfront=True):
         """
         Collect white/flat field images by moving the sample out of the FOV
@@ -319,7 +318,6 @@ class Tomography(Experiment):
         yield from bps.mv(tomostage.kx, cfg_tomo['initial_kx'])
         yield from bps.mv(tomostage.kz, cfg_tomo['initial_kz'])
     
-    @bpp.run_decorator()
     def collect_dark_field(self, cfg_tomo):
         """
         Collect dark field images by close the shutter
@@ -338,7 +336,6 @@ class Tomography(Experiment):
         yield from bps.mv(det.cam.num_images, cfg_tomo['n_frames']*cfg_tomo['n_dark'])
         yield from bps.trigger_and_read([det])
 
-    @bpp.run_decorator()
     def step_scan(self, cfg_tomo):
         """
         Collect projections with step motion
@@ -365,7 +362,6 @@ class Tomography(Experiment):
             yield from bps.mv(tomostage.rot, ang)
             yield from bps.trigger_and_read([det])
 
-    @bpp.run_decorator()
     def fly_scan(self, cfg_tomo):
         """
         Collect projections with fly motion
@@ -537,10 +533,11 @@ class Tomography(Experiment):
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
             elif self._mode.lower() in ['debug']:
                 for me in [det.tiff1, det.hdf1]:
-                    print('setting file path')
-                    yield from bps.mv(me.file_path, '/data')
+                    # TODO: file path will lead to time out error
+                    # yield from bps.mv(me.file_path, '/data')
                     yield from bps.mv(me.file_name, fn)
                     yield from bps.mv(me.file_write_mode, 2)
+                    yield from bps.mv(me.auto_increment, 1)
                     yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))
             
