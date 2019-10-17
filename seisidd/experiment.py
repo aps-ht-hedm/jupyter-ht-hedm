@@ -120,6 +120,7 @@ class Tomography(Experiment):
             self.tomo_det.tiff1.file_name.put('prime_my_tiff')
             self.tomo_det.cam1.acquire.put(1)
             sleep(0.01)
+            self.tomo_det.cam1.acquire.put(0)
             self.tomo_det.tiff1.enable.put(0)
             self.tomo_det.tiff1.auto_increment.put(1)
 
@@ -129,6 +130,7 @@ class Tomography(Experiment):
             self.tomo_det.hdf1.file_name.put('prime_my_hdf')
             self.tomo_det.cam1.acquire.put(1)
             sleep(0.01)
+            self.tomo_det.cam1.acquire.put(0)
             self.tomo_det.hdf1.enable.put(0)
             self.tomo_det.hdf1.auto_increment.put(1)
         # TODO:
