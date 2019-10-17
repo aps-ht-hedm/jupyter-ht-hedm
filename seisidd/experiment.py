@@ -417,6 +417,7 @@ class Tomography(Experiment):
         ## step 0: preparation ##
         #########################
         acquire_time   = cfg['tomo']['acquire_time']
+        acquire_period = cfg['tomo']['acquire_period']
         n_white        = cfg['tomo']['n_white']
         n_dark         = cfg['tomo']['n_dark']
         angs = np.arange(
@@ -551,9 +552,6 @@ class Tomography(Experiment):
                 yield from bps.mv(det.hdf1.capture, 1)
             else:
                 raise ValueError(f"Unsupported output type {cfg['output']['type']}")
-            
-            # setting camera parameters
-            yield from bps.mv(det.cam1.acquire_time, acquire_time)
 
             # collect front white field
             yield from bps.mv(det.cam1.frame_type, 0)  # for HDF5 dxchange data structure
@@ -562,6 +560,10 @@ class Tomography(Experiment):
             # collect projections
             yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
             if cfg['tomo']['type'].lower() == 'step':
+                # setting acquire_time and acquire_period
+                yield from bps.mv(det.cam1.acquire_time, acquire_time)
+                yield from bps.mv(det.cam1.acquire_period, acquire_period)
+                # run step_scan
                 yield from self.step_scan(cfg['tomo'])
             elif cfg['tomo']['type'].lower() == 'fly':
                 yield from self.fly_scan(cfg['tomo'])
