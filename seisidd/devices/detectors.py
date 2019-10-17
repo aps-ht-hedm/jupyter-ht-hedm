@@ -71,6 +71,7 @@ class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
     frame_rate_on_off       = ADComponent(EpicsSignalWithRBV, "FrameRateOnOff")
     frame_rate_auto_mode    = ADComponent(EpicsSignalWithRBV, "FrameRateAutoMode")
 
+
 class PointGreyDetector(SingleTrigger, AreaDetector):
     """PointGrey Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
 
