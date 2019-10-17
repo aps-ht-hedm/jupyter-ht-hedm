@@ -113,6 +113,7 @@ class Tomography(Experiment):
             # take an image to prime the tiff1 and hdf1 plugin
             self.tomo_det.cam1.acquire_time.put(0.001)
             self.tomo_det.cam1.acquire_period.put(0.005)
+            self.tomo_det.cam1.image_mode.put('Continuous')
 
             self.tomo_det.tiff1.auto_increment.put(0)
             self.tomo_det.tiff1.capture.put(0)
