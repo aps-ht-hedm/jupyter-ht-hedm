@@ -556,7 +556,7 @@ class Tomography(Experiment):
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
             elif self._mode.lower() in ['debug']:
                 for me in [det.tiff1, det.hdf1]:
-                    # TODO: file path will lead to time out error
+                    # TODO: file path will lead to time out error in Sim test
                     # yield from bps.mv(me.file_path, '/data')
                     yield from bps.mv(me.file_name, fn)
                     yield from bps.mv(me.file_write_mode, 2)
