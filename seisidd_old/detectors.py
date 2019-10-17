@@ -43,7 +43,7 @@ class HDF5Plugin6IDD(HDF5Plugin):
 
 class PointGreyDetector6IDD(SingleTrigger, AreaDetector):
     """Point Gray area detector used at 6IDD"""
-    cam   = ADComponent(PointGreyDetectorCam6IDD, "cam1:")  # cam component
+    cam1  = ADComponent(PointGreyDetectorCam6IDD, "cam1:")  # cam component
     proc1 = ADComponent(ProcessPlugin, suffix="Proc1:")     # proc plugin
     tiff1 = ADComponent(TIFFPlugin,    suffix="TIFF1:")     # tiff plugin
     hdf1  = ADComponent(HDF5Plugin6IDD, suffix="HDF1:")     # HDF5 plugin

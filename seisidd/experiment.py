@@ -17,6 +17,8 @@ from   bluesky.callbacks.best_effort import BestEffortCallback
 from   bluesky.suspenders            import SuspendFloor
 from   bluesky.simulators            import summarize_plan
 
+from   time                          import sleep
+
 from  .devices.beamline              import Beam, SimBeam
 from  .devices.beamline              import FastShutter
 from  .devices.motors                import StageAero, SimStageAero
@@ -106,6 +108,31 @@ class Tomography(Experiment):
         self.fly_control = Tomography.get_flycontrol(self._mode)
         self.tomo_det    = Tomography.get_detector(self._mode)
         self.tomo_beam   = Tomography.get_tomobeam(self._mode)
+        
+        if mode.lower() in ['debug']:
+            # take an image to prime the tiff1 and hdf1 plugin
+            self.tomo_det.cam1.acquire_time.put(0.001)
+            self.tomo_det.cam1.acquire_period.put(0.005)
+
+            self.tomo_det.tiff1.auto_increment.put(0)
+            self.tomo_det.tiff1.capture.put(0)
+            self.tomo_det.tiff1.enable.put(1)
+            self.tomo_det.tiff1.file_name.put('prime_my_tiff')
+            self.tomo_det.cam1.acquire.put(1)
+            sleep(0.01)
+            self.tomo_det.cam1.acquire.put(0)
+            self.tomo_det.tiff1.enable.put(0)
+            self.tomo_det.tiff1.auto_increment.put(1)
+
+            self.tomo_det.hdf1.auto_increment.put(0)
+            self.tomo_det.hdf1.capture.put(0)
+            self.tomo_det.hdf1.enable.put(1)
+            self.tomo_det.hdf1.file_name.put('prime_my_hdf')
+            self.tomo_det.cam1.acquire.put(1)
+            sleep(0.01)
+            self.tomo_det.cam1.acquire.put(0)
+            self.tomo_det.hdf1.enable.put(0)
+            self.tomo_det.hdf1.auto_increment.put(1)
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
@@ -136,7 +163,7 @@ class Tomography(Experiment):
         stage = self.tomo_stage
         # get the current beamline optics
         # TODO: need to figure out how to get the beam energy
-        # commented out for sim testing
+        # commented out for Sim testing
         
         _beamline_status = (
                            f"Beam Size is:   {beam.s1.h_size}x{beam.s1.v_size} (HxV) \n"
@@ -242,13 +269,13 @@ class Tomography(Experiment):
             # _current_fp = str(pathlib.Path(__file__).parent.absolute())
             # _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
             # _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
-            # det.cam.nd_attributes_file.put(_attrib_fp)
+            # det.cam1.nd_attributes_file.put(_attrib_fp)
             # det.hdf1.xml_file_name.put(_layout_fp)
-            # turn off the problematic auto setting in cam
-            # det.cam.auto_exposure_auto_mode.put(0)  
-            # det.cam.sharpness_auto_mode.put(0)
-            # det.cam.gain_auto_mode.put(0)
-            # det.cam.frame_rate_auto_mode.put(0)
+            # turn off the problematic auto setting in cam1
+            # det.cam1.auto_exposure_auto_mode.put(0)  
+            # det.cam1.sharpness_auto_mode.put(0)
+            # det.cam1.gain_auto_mode.put(0)
+            # det.cam1.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             #   need to check this name for assigning the detector
             det = PointGreyDetector("PV_DET", name='det')
@@ -269,19 +296,18 @@ class Tomography(Experiment):
             _current_fp = str(pathlib.Path(__file__).parent.absolute())
             _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
             _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
-            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.cam1.nd_attributes_file.put(_attrib_fp)
             det.hdf1.xml_file_name.put(_layout_fp)
-            # turn off the problematic auto setting in cam
-            det.cam.auto_exposure_auto_mode.put(0)  
-            det.cam.sharpness_auto_mode.put(0)
-            det.cam.gain_auto_mode.put(0)
-            det.cam.frame_rate_auto_mode.put(0)
+            # turn off the problematic auto setting in cam1
+            det.cam1.auto_exposure_auto_mode.put(0)  
+            det.cam1.sharpness_auto_mode.put(0)
+            det.cam1.gain_auto_mode.put(0)
+            det.cam1.frame_rate_auto_mode.put(0)
         else:
             raise ValueError(f"Invalide mode, {mode}")
         return det
 
     # ----- pre-defined scan plans starts from here
-    @bpp.run_decorator()
     def collect_white_field(self, cfg_tomo, atfront=True):
         """
         Collect white/flat field images by moving the sample out of the FOV
@@ -306,9 +332,9 @@ class Tomography(Experiment):
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.reset_filter, 1)
         yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
-        yield from bps.mv(det.cam.trigger_mode, "Internal")
-        yield from bps.mv(det.cam.image_mode, "Multiple")
-        yield from bps.mv(det.cam.num_images, cfg_tomo['n_frames']*cfg_tomo['n_white'])
+        yield from bps.mv(det.cam1.trigger_mode, "Internal")
+        yield from bps.mv(det.cam1.image_mode, "Multiple")
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames']*cfg_tomo['n_white'])
         yield from bps.trigger_and_read([det])
     
         # move sample back to FOV
@@ -319,7 +345,6 @@ class Tomography(Experiment):
         yield from bps.mv(tomostage.kx, cfg_tomo['initial_kx'])
         yield from bps.mv(tomostage.kz, cfg_tomo['initial_kz'])
     
-    @bpp.run_decorator()
     def collect_dark_field(self, cfg_tomo):
         """
         Collect dark field images by close the shutter
@@ -333,12 +358,11 @@ class Tomography(Experiment):
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.reset_filter, 1)
         yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
-        yield from bps.mv(det.cam.trigger_mode, "Internal")
-        yield from bps.mv(det.cam.image_mode, "Multiple")
-        yield from bps.mv(det.cam.num_images, cfg_tomo['n_frames']*cfg_tomo['n_dark'])
+        yield from bps.mv(det.cam1.trigger_mode, "Internal")
+        yield from bps.mv(det.cam1.image_mode, "Multiple")
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames']*cfg_tomo['n_dark'])
         yield from bps.trigger_and_read([det])
 
-    @bpp.run_decorator()
     def step_scan(self, cfg_tomo):
         """
         Collect projections with step motion
@@ -354,6 +378,7 @@ class Tomography(Experiment):
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.reset_filter, 1)
         yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames'])
    
         angs = np.arange(
             cfg_tomo['omega_start'], 
@@ -365,7 +390,6 @@ class Tomography(Experiment):
             yield from bps.mv(tomostage.rot, ang)
             yield from bps.trigger_and_read([det])
 
-    @bpp.run_decorator()
     def fly_scan(self, cfg_tomo):
         """
         Collect projections with fly motion
@@ -388,8 +412,8 @@ class Tomography(Experiment):
         # taxi
         yield from bps.mv(psofly.taxi, "Taxi")
         yield from bps.mv(
-            det.cam.num_images, cfg_tomo['n_projections'],
-            det.cam.trigger_mode, "Overlapped",
+            det.cam1.num_images, cfg_tomo['n_projections'],
+            det.cam1.trigger_mode, "Overlapped",
         )
         # start the fly scan
         yield from bps.trigger(det, group='fly')
@@ -421,6 +445,7 @@ class Tomography(Experiment):
         ## step 0: preparation ##
         #########################
         acquire_time   = cfg['tomo']['acquire_time']
+        acquire_period = cfg['tomo']['acquire_period']
         n_white        = cfg['tomo']['n_white']
         n_dark         = cfg['tomo']['n_dark']
         angs = np.arange(
@@ -455,31 +480,25 @@ class Tomography(Experiment):
         # yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
         # yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
 
-        # # set attenuation
-        # _attenuation = cfg['tomo']['attenuation']
-        # yield from bps.mv(beam.att.att_level, _attenuation)
-
-        # # check energy
-        # # need to be clear what we want to do here
-        # _energy_foil = cfg['tomo']['energyfoil']
-        # yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
-
-        # TODO:
-        #   Instead of setting the beam optics, just check the current setup
-        #   and print it out for user infomation.
-        # current beam size
-
-        # cfg['tomo']['beamsize_h']     = beam.s1.h_size
-        # cfg['tomo']['beamsize_v']     = beam.s1.v_size
-
-        # current lenses (proposed...)
-
-        # cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
-        
-        # current attenuation
-        # TODO: Commented for Sim testing
-        # cfg['tomo']['attenuation']    = beam.att.att_level
-        # check energy? may not be necessary.
+        if self._mode.lower() in ['dryrun', 'production']:
+            # set attenuation
+            _attenuation = cfg['tomo']['attenuation']
+            yield from bps.mv(beam.att.att_level, _attenuation)
+            # check energy
+            # need to be clear what we want to do here
+            _energy_foil = cfg['tomo']['energyfoil']
+            yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
+            # TODO:
+            #   Instead of setting the beam optics, just check the current setup
+            #   and print it out for user infomation.
+            # current beam size
+            cfg['tomo']['beamsize_h']     = beam.s1.h_size
+            cfg['tomo']['beamsize_v']     = beam.s1.v_size
+            # current lenses (proposed...)
+            cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+            # current attenuation
+            cfg['tomo']['attenuation']    = beam.att.att_level
+            # check energy? may not be necessary.
 
 
         # TODO:
@@ -537,10 +556,11 @@ class Tomography(Experiment):
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
             elif self._mode.lower() in ['debug']:
                 for me in [det.tiff1, det.hdf1]:
-                    print('setting file path')
-                    yield from bps.mv(me.file_path, '/data')
+                    # TODO: file path will lead to time out error
+                    # yield from bps.mv(me.file_path, '/data')
                     yield from bps.mv(me.file_name, fn)
                     yield from bps.mv(me.file_write_mode, 2)
+                    yield from bps.mv(me.auto_increment, 1)
                     yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))
             
@@ -554,15 +574,18 @@ class Tomography(Experiment):
                 yield from bps.mv(det.hdf1.capture, 1)
             else:
                 raise ValueError(f"Unsupported output type {cfg['output']['type']}")
-                
-            print("start to collect front white")
+
             # collect front white field
-            yield from bps.mv(det.cam.frame_type, 0)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam1.frame_type, 0)  # for HDF5 dxchange data structure
             yield from self.collect_white_field(cfg['tomo'], atfront=True)
     
             # collect projections
-            yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
             if cfg['tomo']['type'].lower() == 'step':
+                # setting acquire_time and acquire_period
+                yield from bps.mv(det.cam1.acquire_time, acquire_time)
+                yield from bps.mv(det.cam1.acquire_period, acquire_period)
+                # run step_scan
                 yield from self.step_scan(cfg['tomo'])
             elif cfg['tomo']['type'].lower() == 'fly':
                 yield from self.fly_scan(cfg['tomo'])
@@ -570,14 +593,17 @@ class Tomography(Experiment):
                 raise ValueError(f"Unsupported scan type: {cfg['tomo']['type']}")
     
             # collect back white field
-            yield from bps.mv(det.cam.frame_type, 2)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam1.frame_type, 2)  # for HDF5 dxchange data structure
             yield from self.collect_white_field(cfg['tomo'], atfront=False)
     
             # collect back dark field
-            yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
-            # TODO: commented for Sim test
-            # yield from bps.remove_suspender(shutter_suspender)
-            # yield from bps.mv(shutter, "close")
+            yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
+            
+            # TODO: no shutter available for Sim testing
+            if self._mode.lower() in ['dryrun', 'production']:
+                yield from bps.remove_suspender(shutter_suspender)
+                yield from bps.mv(shutter, "close")
+
             yield from self.collect_dark_field(cfg['tomo'])
     
         return (yield from scan_closure())
@@ -703,13 +729,13 @@ class NearField(Experiment):
             _current_fp = str(pathlib.Path(__file__).parent.absolute())
             _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
             _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
-            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.cam1.nd_attributes_file.put(_attrib_fp)
             det.hdf1.xml_file_name.put(_layout_fp)
             # turn off the problematic auto setting in cam
-            det.cam.auto_exposure_auto_mode.put(0)  
-            det.cam.sharpness_auto_mode.put(0)
-            det.cam.gain_auto_mode.put(0)
-            det.cam.frame_rate_auto_mode.put(0)
+            det.cam1.auto_exposure_auto_mode.put(0)  
+            det.cam1.sharpness_auto_mode.put(0)
+            det.cam1.gain_auto_mode.put(0)
+            det.cam1.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             det = PointGreyDetector("PV_DET", name='det')
             # check the following page for important information
@@ -729,13 +755,13 @@ class NearField(Experiment):
             _current_fp = str(pathlib.Path(__file__).parent.absolute())
             _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
             _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
-            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.cam1.nd_attributes_file.put(_attrib_fp)
             det.hdf1.xml_file_name.put(_layout_fp)
             # turn off the problematic auto setting in cam
-            det.cam.auto_exposure_auto_mode.put(0)  
-            det.cam.sharpness_auto_mode.put(0)
-            det.cam.gain_auto_mode.put(0)
-            det.cam.frame_rate_auto_mode.put(0)
+            det.cam1.auto_exposure_auto_mode.put(0)  
+            det.cam1.sharpness_auto_mode.put(0)
+            det.cam1.gain_auto_mode.put(0)
+            det.cam1.frame_rate_auto_mode.put(0)
         else:
             raise ValueError(f"Invalide mode, {mode}")
         return det
@@ -779,8 +805,8 @@ class NearField(Experiment):
         # taxi
         yield from bps.mv(psofly.taxi, "Taxi")
         yield from bps.mv(
-            det.cam.num_images, cfg_nf['n_projections'],
-            det.cam.trigger_mode, "Overlapped",
+            det.cam1.num_images, cfg_nf['n_projections'],
+            det.cam1.trigger_mode, "Overlapped",
         )
         # start the fly scan
         yield from bps.trigger(det, group='fly')
@@ -930,12 +956,12 @@ class NearField(Experiment):
             #   Add FS control here to toggle the FS or Main Shutter?
 
             # collect projections in the current layer in the FIRST det z position
-            yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
-            yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z1']) # need actual motor
+            yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam1.position, cfg_nf['detector_z_position']['nf_z1']) # need actual motor
             yield from self.fly_scan(cfg['nf'])
 
             # collect projections in the current layer in the SECOND det z position
-            yield from bps.mv(det.cam.position, cfg_nf['detector_z_position']['nf_z2']) # need actual motor
+            yield from bps.mv(det.cam1.position, cfg_nf['detector_z_position']['nf_z2']) # need actual motor
             yield from self.fly_scan(cfg['nf'])
             
             #  TODO:
@@ -1081,13 +1107,13 @@ class FarField(Experiment):
             _current_fp = str(pathlib.Path(__file__).parent.absolute())
             _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
             _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
-            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.cam1.nd_attributes_file.put(_attrib_fp)
             det.hdf1.xml_file_name.put(_layout_fp)
-            # turn off the problematic auto setting in cam
-            det.cam.auto_exposure_auto_mode.put(0)  
-            det.cam.sharpness_auto_mode.put(0)
-            det.cam.gain_auto_mode.put(0)
-            det.cam.frame_rate_auto_mode.put(0)
+            # turn off the problematic auto setting in cam1
+            det.cam1.auto_exposure_auto_mode.put(0)  
+            det.cam1.sharpness_auto_mode.put(0)
+            det.cam1.gain_auto_mode.put(0)
+            det.cam1.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             ### TODO:
             ###     Need to get have the Dexela configured in Devices.py
@@ -1110,13 +1136,13 @@ class FarField(Experiment):
             _current_fp = str(pathlib.Path(__file__).parent.absolute())
             _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
             _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
-            det.cam.nd_attributes_file.put(_attrib_fp)
+            det.cam1.nd_attributes_file.put(_attrib_fp)
             det.hdf1.xml_file_name.put(_layout_fp)
-            # turn off the problematic auto setting in cam
-            det.cam.auto_exposure_auto_mode.put(0)  
-            det.cam.sharpness_auto_mode.put(0)
-            det.cam.gain_auto_mode.put(0)
-            det.cam.frame_rate_auto_mode.put(0)
+            # turn off the problematic auto setting in cam1
+            det.cam1.auto_exposure_auto_mode.put(0)  
+            det.cam1.sharpness_auto_mode.put(0)
+            det.cam1.gain_auto_mode.put(0)
+            det.cam1.frame_rate_auto_mode.put(0)
             """
         else:
             raise ValueError(f"Invalide mode, {mode}")
@@ -1150,9 +1176,9 @@ class FarField(Experiment):
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.reset_filter, 1)
         yield from bps.mv(det.proc1.num_filter, cfg_ff['n_frames'])
-        yield from bps.mv(det.cam.trigger_mode, "Internal")
-        yield from bps.mv(det.cam.image_mode, "Multiple")
-        yield from bps.mv(det.cam.num_images, cfg_ff['n_frames']*cfg_ff['n_dark'])
+        yield from bps.mv(det.cam1.trigger_mode, "Internal")
+        yield from bps.mv(det.cam1.image_mode, "Multiple")
+        yield from bps.mv(det.cam1.num_images, cfg_ff['n_frames']*cfg_ff['n_dark'])
         yield from bps.trigger_and_read([det])
 
     @bpp.run_decorator()
@@ -1210,8 +1236,8 @@ class FarField(Experiment):
         # taxi
         yield from bps.mv(psofly.taxi, "Taxi")
         yield from bps.mv(
-            det.cam.num_images, cfg_ff['n_projections'],
-            det.cam.trigger_mode, "Overlapped",
+            det.cam1.num_images, cfg_ff['n_projections'],
+            det.cam1.trigger_mode, "Overlapped",
         )
         # start the fly scan
         yield from bps.trigger(det, group='fly')
@@ -1368,7 +1394,7 @@ class FarField(Experiment):
             #   Add FS control here to toggle the FS or Main Shutter?
 
             # collect front dark field
-            yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
             yield from bps.remove_suspender(shutter_suspender)
             yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
             yield from self.collect_dark_field(cfg['ff'])
@@ -1377,17 +1403,17 @@ class FarField(Experiment):
 
             # collect projections in the current layer in the det z position
             # Let's discussed if we want det z control during scans
-            yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
             if cfg['ff']['type'].lower() == 'step':
                 yield from self.step_scan(cfg['ff'])
             elif cfg['ff']['type'].lower() == 'fly':
-                # yield from bps.mv(det.cam.position, cfg_ff['detector_z_position']['ff_z1']) # need actual motor
+                # yield from bps.mv(det.cam1.position, cfg_ff['detector_z_position']['ff_z1']) # need actual motor
                 yield from self.fly_scan(cfg['nf'])
             else:
                 raise ValueError(f"Unsupported scan type: {cfg['ff']['type']}")
 
             # collect back dark field
-            yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
             yield from bps.remove_suspender(shutter_suspender)
             yield from bps.mv(shutter, "close")         # let's discuss which shutter to use here
             yield from self.collect_dark_field(cfg['ff'])

@@ -71,6 +71,7 @@ class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
     frame_rate_on_off       = ADComponent(EpicsSignalWithRBV, "FrameRateOnOff")
     frame_rate_auto_mode    = ADComponent(EpicsSignalWithRBV, "FrameRateAutoMode")
 
+
 class PointGreyDetector(SingleTrigger, AreaDetector):
     """PointGrey Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
 
@@ -170,7 +171,7 @@ class SimDetector(SingleTrigger, AreaDetector):
     This is based on the Point Grey detector
     """
 
-    cam   = ADComponent(SimDetectorCam6IDD, suffix="cam1:" )  # camera
+    cam1  = ADComponent(SimDetectorCam6IDD, suffix="cam1:" )  # camera
     proc1 = ADComponent(ProcessPlugin,      suffix="Proc1:")  # processing
     tiff1 = ADComponent(TIFFPlugin,         suffix="TIFF1:")  # tiff output
     hdf1  = ADComponent(HDF5Plugin6IDD,     suffix="HDF1:" )  # HDF5 output
