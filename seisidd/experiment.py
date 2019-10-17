@@ -17,6 +17,8 @@ from   bluesky.callbacks.best_effort import BestEffortCallback
 from   bluesky.suspenders            import SuspendFloor
 from   bluesky.simulators            import summarize_plan
 
+from   time                          import sleep
+
 from  .devices.beamline              import Beam, SimBeam
 from  .devices.beamline              import FastShutter
 from  .devices.motors                import StageAero, SimStageAero
@@ -106,6 +108,29 @@ class Tomography(Experiment):
         self.fly_control = Tomography.get_flycontrol(self._mode)
         self.tomo_det    = Tomography.get_detector(self._mode)
         self.tomo_beam   = Tomography.get_tomobeam(self._mode)
+        
+        if mode.lower() in ['debug']:
+            # take an image to prime the tiff1 and hdf1 plugin
+            self.tomo_det.cam1.acquire_time.put(0.001)
+            self.tomo_det.cam1.acquire_period.put(0.005)
+
+            self.tomo_det.tiff1.auto_increment.put(0)
+            self.tomo_det.tiff1.capture.put(0)
+            self.tomo_det.tiff1.enable.put(1)
+            self.tomo_det.tiff1.file_name.put('prime_my_tiff')
+            self.tomo_det.cam1.acquire.put(1)
+            sleep(0.01)
+            self.tomo_det.tiff1.enable.put(0)
+            self.tomo_det.tiff1.auto_increment.put(1)
+
+            self.tomo_det.hdf1.auto_increment.put(0)
+            self.tomo_det.hdf1.capture.put(0)
+            self.tomo_det.hdf1.enable.put(1)
+            self.tomo_det.hdf1.file_name.put('prime_my_hdf')
+            self.tomo_det.cam1.acquire.put(1)
+            sleep(0.01)
+            self.tomo_det.hdf1.enable.put(0)
+            self.tomo_det.hdf1.auto_increment.put(1)
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
@@ -351,6 +376,7 @@ class Tomography(Experiment):
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.reset_filter, 1)
         yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames'])
    
         angs = np.arange(
             cfg_tomo['omega_start'], 
