@@ -163,7 +163,7 @@ class Tomography(Experiment):
         stage = self.tomo_stage
         # get the current beamline optics
         # TODO: need to figure out how to get the beam energy
-        # commented out for sim testing
+        # commented out for Sim testing
         
         _beamline_status = (
                            f"Beam Size is:   {beam.s1.h_size}x{beam.s1.v_size} (HxV) \n"
@@ -480,31 +480,25 @@ class Tomography(Experiment):
         # yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
         # yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
 
-        # # set attenuation
-        # _attenuation = cfg['tomo']['attenuation']
-        # yield from bps.mv(beam.att.att_level, _attenuation)
-
-        # # check energy
-        # # need to be clear what we want to do here
-        # _energy_foil = cfg['tomo']['energyfoil']
-        # yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
-
-        # TODO:
-        #   Instead of setting the beam optics, just check the current setup
-        #   and print it out for user infomation.
-        # current beam size
-
-        # cfg['tomo']['beamsize_h']     = beam.s1.h_size
-        # cfg['tomo']['beamsize_v']     = beam.s1.v_size
-
-        # current lenses (proposed...)
-
-        # cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
-        
-        # current attenuation
-        # TODO: Commented for Sim testing
-        # cfg['tomo']['attenuation']    = beam.att.att_level
-        # check energy? may not be necessary.
+        if self._mode.lower() in ['dryrun', 'production']:
+            # set attenuation
+            _attenuation = cfg['tomo']['attenuation']
+            yield from bps.mv(beam.att.att_level, _attenuation)
+            # check energy
+            # need to be clear what we want to do here
+            _energy_foil = cfg['tomo']['energyfoil']
+            yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
+            # TODO:
+            #   Instead of setting the beam optics, just check the current setup
+            #   and print it out for user infomation.
+            # current beam size
+            cfg['tomo']['beamsize_h']     = beam.s1.h_size
+            cfg['tomo']['beamsize_v']     = beam.s1.v_size
+            # current lenses (proposed...)
+            cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+            # current attenuation
+            cfg['tomo']['attenuation']    = beam.att.att_level
+            # check energy? may not be necessary.
 
 
         # TODO:
@@ -604,9 +598,12 @@ class Tomography(Experiment):
     
             # collect back dark field
             yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
-            # TODO: commented for Sim test
-            # yield from bps.remove_suspender(shutter_suspender)
-            # yield from bps.mv(shutter, "close")
+            
+            # TODO: no shutter available for Sim testing
+            if self._mode.lower() in ['dryrun', 'production']:
+                yield from bps.remove_suspender(shutter_suspender)
+                yield from bps.mv(shutter, "close")
+
             yield from self.collect_dark_field(cfg['tomo'])
     
         return (yield from scan_closure())
