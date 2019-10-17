@@ -33,12 +33,12 @@ tomo:
                           # which motors are we using? kx or x_base?
     kx:  -1             # mm (relative position to initial position)
     kz:   0             # mm (relative position to initial position)
-  acquire_time:   0.80    # sec
-  acquire_period: 0.81    # sec, acquire_time+0.01, (not being used in fly)
+  acquire_time:   0.3    # sec
+  acquire_period: 0.31    # sec, acquire_time+0.01, (not being used in fly)
   omega_step:     1     # degree
   omega_start:    0.0    # degree
-  omega_end:     10.0    # degree
-  n_frames:       1       # 5 frames -> 1 images
+  omega_end:      9.0    # degree
+  n_frames:       2       # n frames -> 1 images
   # below are for fly_scan only
   ROT_STAGE_FAST_SPEED:       1   # degree/second,
   accl:                       3   # second,
@@ -118,4 +118,4 @@ output:  # we should include the output in each experiment (i.e. tomo, NF, FF)
   # Consider autofill the path if that works.
   filepath:    '/data'    # use testing location
   fileprefix:  'ttt'       # specify file name
-  type:        'tif'       # [tiff|tif, hdf|hdf1|hdf5]
+  type:        'hdf'       # [tiff|tif, hdf|hdf1|hdf5]
