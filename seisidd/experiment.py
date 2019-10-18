@@ -134,6 +134,17 @@ class Tomography(Experiment):
             self.tomo_det.cam1.acquire.put(0)
             self.tomo_det.hdf1.enable.put(0)
             self.tomo_det.hdf1.auto_increment.put(1)
+
+            # set up auto save for tiff and hdf
+            self.tomo_det.tiff1.auto_save.put(1)
+            self.tomo_det.hdf1.auto_save.put(1)
+            
+            # turn on proc1 filter
+            self.tomo_det.proc1.enable_filter.put(1)
+            self.tomo_det.proc1.auto_reset_filter.put(1)
+            self.tomo_det.proc1.filter_callbacks.put(1) 
+            # 0 for 'Every array'; 1 for 'Every N only'
+
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
