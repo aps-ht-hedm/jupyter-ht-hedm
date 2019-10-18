@@ -118,4 +118,4 @@ output:  # we should include the output in each experiment (i.e. tomo, NF, FF)
   # Consider autofill the path if that works.
   filepath:    '/data'    # use testing location
   fileprefix:  'test'       # specify file name
-  type:        'tiff'       # [tiff|tif, hdf|hdf1|hdf5]
+  type:        'hdf'       # [tiff|tif, hdf|hdf1|hdf5]
