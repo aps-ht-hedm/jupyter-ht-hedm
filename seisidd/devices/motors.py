@@ -129,7 +129,7 @@ class SimStageAero(MotorBundle):
     kx_tilt = Component(EpicsMotor, "6iddSIM:m16", name='kx_tilt')   # kohzu tilt motion along x
     kz_tilt = Component(EpicsMotor, "6iddSIM:m16", name='kz_tilt')   # kohzu tilt motion along z
 
-    rot     = Component(EpicsMotor, "6iddSIM:m16",  name='rot_y'  )    # rotation with aero stage
+    rot     = Component(EpicsMotor, "6iddSIM:m4",  name='rot_y'  )    # rotation with aero stage
 
     x_base  = Component(EpicsMotor, "6iddSIM:m16",  name='x_trans')    # x motion below aero stage
     y_base  = Component(EpicsMotor, "6iddSIM:m16",  name='y_trans')    # y motion below aero stage
