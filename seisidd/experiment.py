@@ -113,6 +113,7 @@ class Tomography(Experiment):
             # take an image to prime the tiff1 and hdf1 plugin
             self.tomo_det.cam1.acquire_time.put(0.001)
             self.tomo_det.cam1.acquire_period.put(0.005)
+            self.tomo_det.cam1.image_mode.put('Continuous')
 
             self.tomo_det.tiff1.auto_increment.put(0)
             self.tomo_det.tiff1.capture.put(0)
@@ -133,6 +134,17 @@ class Tomography(Experiment):
             self.tomo_det.cam1.acquire.put(0)
             self.tomo_det.hdf1.enable.put(0)
             self.tomo_det.hdf1.auto_increment.put(1)
+
+            # set up auto save for tiff and hdf
+            self.tomo_det.tiff1.auto_save.put(1)
+            self.tomo_det.hdf1.auto_save.put(1)
+            
+            # turn on proc1 filter
+            self.tomo_det.proc1.enable_filter.put(1)
+            self.tomo_det.proc1.auto_reset_filter.put(1)
+            self.tomo_det.proc1.filter_callbacks.put(1) 
+            # 0 for 'Every array'; 1 for 'Every N only'
+
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
@@ -330,6 +342,8 @@ class Tomography(Experiment):
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
         yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
         yield from bps.mv(det.proc1.reset_filter, 1)
         yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
         yield from bps.mv(det.cam1.trigger_mode, "Internal")
@@ -356,6 +370,8 @@ class Tomography(Experiment):
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
         yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
         yield from bps.mv(det.proc1.reset_filter, 1)
         yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
         yield from bps.mv(det.cam1.trigger_mode, "Internal")
@@ -376,6 +392,8 @@ class Tomography(Experiment):
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
         yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
         yield from bps.mv(det.proc1.reset_filter, 1)
         yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
         yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames'])
@@ -556,7 +574,7 @@ class Tomography(Experiment):
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
             elif self._mode.lower() in ['debug']:
                 for me in [det.tiff1, det.hdf1]:
-                    # TODO: file path will lead to time out error
+                    # TODO: file path will lead to time out error in Sim test
                     # yield from bps.mv(me.file_path, '/data')
                     yield from bps.mv(me.file_name, fn)
                     yield from bps.mv(me.file_write_mode, 2)
