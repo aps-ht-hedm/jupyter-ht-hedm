@@ -5,7 +5,7 @@ services:
   caRepeat:
     container_name: caRepeater
     restart: always
-    image: kedokudo/virtualbeamline:epics-base
+    image: kedokudo/epics-base:latest
     networks:
       - vn6idd
     entrypoint:
@@ -14,7 +14,7 @@ services:
   ioc6iddsimmtr:
     container_name: ioc6iddsimmtr
     restart: always
-    image: kedokudo/virtualbeamline:ioc6iddsimmtr
+    image: kedokudo/ioc6iddsimmtr:latest
     stdin_open: true
     tty: true
     networks:
@@ -34,7 +34,7 @@ services:
   ioc6iddsimdet:
     container_name: ioc6iddsimdet
     restart: always
-    image: kedokudo/virtualbeamline:ioc6iddsimdet
+    image: kedokudo/ioc6iddsimdet:latest
     stdin_open: true
     tty: true
     networks:
@@ -52,7 +52,7 @@ services:
   
   console:
     container_name: console
-    image: kedokudo/virtualbeamline:epics-base
+    image: kedokudo/epics-base:latest
     stdin_open: true
     tty: true
     entrypoint:
@@ -69,7 +69,7 @@ services:
   
   vnc:
     container_name: vnc
-    image: kedokudo/virtualbeamline:vnc
+    image: kedokudo/vnc:latest
     stdin_open: true
     tty: true
     environment:
@@ -101,7 +101,7 @@ services:
 
   frontend:
     container_name: jupyterlab
-    image: kedokudo/virtualbeamline:jupyter
+    image: kedokudo/jupyter:latest
     stdin_open: true
     tty: true
     networks:
