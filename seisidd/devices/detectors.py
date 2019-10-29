@@ -10,7 +10,7 @@ NOTE:
 """
 
 from ophyd   import AreaDetector
-from ophyd   import SingleTrigger, EpicsSignalWithRBV
+from ophyd   import SingleTrigger, EpicsSignalRO, EpicsSignalWithRBV
 from ophyd   import ADComponent
 from ophyd   import CamBase, PointGreyDetectorCam  ## no DexelaDetectorCam in Ophyd
 from ophyd   import ProcessPlugin
@@ -30,7 +30,94 @@ class RetigaDetectorCam(CamBase):
     # configuration, see 
     #  https://github.com/bluesky/ophyd/blob/master/ophyd/areadetector/cam.py
     # for more examples on how to make the PointGrey cam
-    pass
+    # NOTE:
+    # - The PV settings are based on QIMAGE2@1-ID-C,APS
+    # - The following PVs are defined in CamBase, but the available values
+    #   might differe from other cams  // bookkeeping for inconsistent naming
+    #    ---------------    |||   ------------
+    #    MEDM/GUI/caQTdm    |||    PV/BlueSky
+    #    ---------------    |||   ------------
+    #   acquire_time        ===   exposure_time
+    #   attributes          ===   nd_attributes_file
+    #   buffer max/used     ===   pool_max/used_buffers
+    #   buffer alloc/free   ===   pool_alloc/free_buffers
+    #   buffer max/used     ===   pool_max_buffers
+    #   memory max/userd    ===   pool_max/used_mem
+    #   image_counter       ===   array_counter
+    #   image_rate          ===   array_rate
+    #   Sensor size         ===   max_size                  // bundled fields
+    #   Region start        ===   min_x/y
+    #   Region size         ===   size                      // bundled fields
+    #   Image size          ===   array_size                // bundled fields
+    #   
+    # - Nominal values for special fields
+    #   * image_mode
+    #       0: Single; 1: Multiple; 2: Continuous; 3: Single Fast
+    #   * trigger_mode
+    #       0: Freerun;  1: EdgeHi;  2: EdgeLow;   3: PulseHi;     4: PulseLow
+    #       5: Software; 6: StrobeHi 7: StrobeLow; 8: Trigger_last
+    # DEV:
+    # - PVs with ?? requires double check during testing
+    #
+
+    _html_docs = ['retigaDoc.html']                                            # ??
+
+    # ---
+    # --- Define missing fields in the collect & attribute panel 
+    # ---
+    auto_exposure = ADComponent(EpicsSignalWithRBV, 'aAutoExposure')           # ??
+    
+    exposure_max  = ADComponent(EpicsSignalRO, 'ExposureMax_RBV')
+    exposure_min  = ADComponent(EpicsSignalRO, 'ExposureMin_RBV')
+
+    exposure_status_message = ADComponent(EpicsSignalRO, 'qExposureStatusMessage_RBV')
+    frame_status_message    = ADComponent(EpicsSignalRO, 'qFrameStatusMessage_RBV')
+
+    pool_used_mem_scan = ADComponent(EpicsSignalWithRBV, 'PoolUsedMem.SCAN')   # ??
+    # available values for pool_used_mem_scan
+    # 0: Passive;    1: Event;      2: I/O Intr;
+    # 3: 10 second;  4: 5 second;   5: 2 second;  6: 1 second;  
+    # 7: 0.5 second; 8: 0.2 second; 9: 0.1 second
+
+    # ---
+    # --- Define missing fields in the Setup panel
+    # ---
+    asyn_io_connected = ADComponent(EpicsSignalWithRBV, 'AsynIO.CNCT')         # 0: Disconnected; 1: Connected
+    reset_cam         = ADComponent(EpicsSignalWithRBV, 'qResetCam')
+
+    # ---
+    # --- Define missing fields in the Readout panel
+    # ---
+    binning = ADComponent(EpicsSignalWithRBV, 'qBinning')
+    # 0: 1x1;  1: 2x2; 2: 4x4;  3: 8x8
+    # WARNING: 
+    # retiga does not have individual binning fields, therefore the predefined
+    # bin_x and bin_y will lead to error...
+    gain_max   = ADComponent(EpicsSignalRO, 'GainMax_RBV')
+    gain_min   = ADComponent(EpicsSignalRO, 'GainMin_RBV')
+    
+    abs_offset   = ADComponent(EpicsSignalWithRBV, 'qOffset')                    # ??
+    image_format = ADComponent(EpicsSignalWithRBV, 'qImageFormat')
+    # -- available values for image_format
+    #  0: Raw       8;    1: Raw       16;  
+    #  2: Mono      8;    3: Mono      16;
+    #  4: RGB Plane 8;    5: GBR Plane 16;
+    #  6: BGR      24;
+    #  7: XRGB     32;
+    #  8: RGB      48;
+    #  9: BGRX     32;
+    # 10: RGB      24;
+    readout_speed = ADComponent(EpicsSignalWithRBV, 'qReadoutSpeed')
+    # -- available values for readout speed
+    # 0: 20 Mhz;  1: 10 Mhz;  2: 5 Mhz
+
+    # ---
+    # --- Define missing fileds in the Cooling Panel
+    # ---
+    cooler = ADComponent(EpicsSignalWithRBV, 'qCoolerActive')
+    # -- available values for cooler
+    # 0: off;  1: on
+
 
 class RetigaDetectorCam6IDD(RetigaDetectorCam):
     """Retiga detector camera module"""
@@ -38,6 +125,7 @@ class RetigaDetectorCam6IDD(RetigaDetectorCam):
     #   We will do this if we have to....
     #   Please, please, please don't purchase this
     pass
+
 
 class DexelaDetectorCam(CamBase):
     """Dexela detector camera module """
