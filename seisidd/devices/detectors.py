@@ -16,6 +16,7 @@ from ophyd   import CamBase, PointGreyDetectorCam  ## no DexelaDetectorCam in Op
 from ophyd   import ProcessPlugin
 from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
+from ophyd   import TransformPlugin
 
 
 class HDF5Plugin6IDD(HDF5Plugin):
