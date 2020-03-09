@@ -19,21 +19,21 @@ class SlitUpstream(MotorBundle):
     #   1ide1:m23
     #   didn't found actual control in the scripts, manually adjusted??
 
-    h_ib    =   Component(EpicsMotor, "PV_inboard",                 name='h_ib'     )   # horizontal in board
-    h_ob    =   Component(EpicsMotor, "PV_outboard",                name='h_ob'     )   # horizontal out board
-    h_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upHsize.VAL",  name='h_size'   )   # horizontal size !!!!!need to check this
-    v_tp    =   Component(EpicsMotor, "PV_top",                     name='v_tp'     )   # vertial top
-    v_bt    =   Component(EpicsMotor, "PV_bottom",                  name='v_bt'     )   # vertial bottom
-    v_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upVsize.VAL",  name='v_size'   )   # vertical size !!!!!need to check this
+    h_ib    =   Component(EpicsMotor, "6idhedm:m4",                  name='h_ib'     )   # horizontal in board
+    h_ob    =   Component(EpicsMotor, "6idhedm:m5",                  name='h_ob'     )   # horizontal out board
+    # h_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upHsize.VAL",  name='h_size'   )   # horizontal size !!!!!need to check this
+    v_tp    =   Component(EpicsMotor, "6idhedm:m2",                  name='v_tp'     )   # vertial top
+    v_bt    =   Component(EpicsMotor, "6idhedm:m3",                  name='v_bt'     )   # vertial bottom
+    # v_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upVsize.VAL",  name='v_size'   )   # vertical size !!!!!need to check this
 
 class SlitDownstream(MotorBundle):
     """Downstream slit that controls the four blades that form the beam"""
-    h_ib    =   Component(EpicsMotor, "PV_inboard",                 name='h_ib'     )
-    h_ob    =   Component(EpicsMotor, "PV_outboard",                name='h_ob'     )
-    h_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_dnHsize.VAL",  name='h_size'   )   # horizontal size !!!!!need to check this
-    v_tp    =   Component(EpicsMotor, "PV_top",                     name='v_tp'     )
-    v_bt    =   Component(EpicsMotor, "PV_bottom",                  name='v_bt'     )
-    v_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upVsize.VAL",  name='v_size'   )   # vertical size !!!!!need to check this
+    h_ib    =   Component(EpicsMotor, "6idhedm:m35",                 name='h_ib'     )
+    h_ob    =   Component(EpicsMotor, "6idhedm:m36",                 name='h_ob'     )
+    # h_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_dnHsize.VAL",  name='h_size'   )   # horizontal size !!!!!need to check this
+    v_tp    =   Component(EpicsMotor, "6idhedm:m33",                 name='v_tp'     )
+    v_bt    =   Component(EpicsMotor, "6idhedm:m34",                 name='v_bt'     )
+    # v_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upVsize.VAL",  name='v_size'   )   # vertical size !!!!!need to check this
 
 ### Per Peter, only motion in the y direction is allowed to avoid accidents
 ### consider comment out all the other PV accesses.
@@ -42,12 +42,12 @@ class FocusLens1(MotorBundle):
     # TODO: 
     # Need to figure out the actual set up and motor PVs
     # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
-    # l1x     =   Component(EpicsMotor, "PV_lens1_x",         name='l1x'      )
-    l1y     =   Component(EpicsMotor, "PV_lens1_y",         name='l1y'      )   
-    # l1z     =   Component(EpicsMotor, "PV_lens1_z",         name='l1z'      )
-    # l1rot   =   Component(EpicsMotor, "PV_lens1_rot",       name='l1rot'    )
-    # l1tx    =   Component(EpicsMotor, "PV_lens1_tiltx",     name='l1tx'     )
-    # l1tz    =   Component(EpicsMotor, "PV_lens1_tiltz",     name='l1tz'     )
+    # l1x     =   Component(EpicsMotor, "6idhedm:m10",         name='l1x'      )
+    l1y     =   Component(EpicsMotor, "6idhedm:m11",         name='l1y'      )   
+    # l1z     =   Component(EpicsMotor, "6idhedm:m9",          name='l1z'      )
+    # l1rot   =   Component(EpicsMotor, "6idhedm:m12",         name='l1rot'    )
+    # l1tx    =   Component(EpicsMotor, "6idhedm:m13",         name='l1tx'     )
+    # l1tz    =   Component(EpicsMotor, "6idhedm:m14",         name='l1tz'     )
 
 
 class FocusLens2(MotorBundle):
@@ -55,12 +55,12 @@ class FocusLens2(MotorBundle):
     # TODO: 
     # Need to figure out the actual set up and motor PVs
     # Each lens is sitting on at least 5 motors (x, y, (z), tiltZ, tiltX, rot)
-    # l2x     =   Component(EpicsMotor, "PV_lens2_x",         name='l2x'      )
-    l2y     =   Component(EpicsMotor, "PV_lens2_y",         name='l2y'      )   
-    # l2z     =   Component(EpicsMotor, "PV_lens2_z",         name='l2z'      )
-    # l2rot   =   Component(EpicsMotor, "PV_lens2_rot",       name='l2rot'    )
-    # l2tx    =   Component(EpicsMotor, "PV_lens2_tiltx",     name='l2tx'     )
-    # l2tz    =   Component(EpicsMotor, "PV_lens2_tiltz",     name='l2tz'     )
+    # l2x     =   Component(EpicsMotor, "6idhedm:m16",         name='l2x'      )
+    l2y     =   Component(EpicsMotor, "6idhedm:m17",         name='l2y'      )   
+    # l2z     =   Component(EpicsMotor, "6idhedm:m15",         name='l2z'      )
+    # l2rot   =   Component(EpicsMotor, "6idhedm:m18",       name='l2rot'    )
+    # l2tx    =   Component(EpicsMotor, "6idhedm:m19",     name='l2tx'     )
+    # l2tz    =   Component(EpicsMotor, "6idhedm:m20",     name='l2tz'     )
 
 
 class FocusLens3(MotorBundle):
@@ -154,7 +154,7 @@ class Attenuator():
     def __init__(self, att_level=0):
         self._att_level = att_level
         self.att_level  = self._att_level
-        self._motor = Component(EpicsMotor, "$attenuator_PV", name='_motor'  )
+        self._motor = Component(EpicsMotor, "6idhedm:m6", name='_motor'  )
 
     @property
     def att_level(self):
@@ -162,7 +162,7 @@ class Attenuator():
 
     @att_level.setter       # what's this?
     def att_level(self, new_att_level):
-        if new_att_level in _att_range:
+        if new_att_level in Attenuator._att_range:
             self._motor.mv(new_att_level)       # may need to do (new_att_level-12) depending on motor setup
             self._att_level = new_att_level
         else:
@@ -171,7 +171,7 @@ class Attenuator():
     
     @property
     def attenuation(self):
-        return _att_level_spreadsheet[self._att_level]
+        return Attenuator._att_level_spreadsheet[self._att_level]
 
 
     
