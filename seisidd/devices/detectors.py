@@ -164,7 +164,7 @@ class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
 class PointGreyDetector(SingleTrigger, AreaDetector):
     """PointGrey Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
 
-    cam   = ADComponent(PointGreyDetectorCam6IDD, suffix="cam1:" )  # camera
+    cam1  = ADComponent(PointGreyDetectorCam6IDD, suffix="cam1:" )  # camera
     proc1 = ADComponent(ProcessPlugin,     suffix="Proc1:")  # processing
     tiff1 = ADComponent(TIFFPlugin,        suffix="TIFF1:")  # tiff output
     hdf1  = ADComponent(HDF5Plugin6IDD,    suffix="HDF1:" )  # HDF5 output
@@ -197,6 +197,21 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
     # TODO:
     #  Additional PVs can be wrapped as property for interactive use when the 
     #  acutal PVs are known.
+
+    def cont_acq(self, _exp, _nframes = -1):
+        """
+        cont_acq(a, b)
+        acuqre 'b' images with exposure of 'a' seconds
+        b is default to -1 to continue acquiring until manual interruption
+        """
+        self.cam1.acquire_time.put(_exp)
+        self.cam1.acquire_mode.put("continuous")  # To be checked
+        if _nframes < 0:
+            # do infinite number of frames....
+            printf("Start taking images with ", _exp," seconds of exposure\n")
+            printf("CTRL + C tp stop...")
+            elif _nframes > 0:
+                self.cam1.nimages.put(_nframes) # To be updated
 
 
 class DexelaDetector(SingleTrigger, AreaDetector):
