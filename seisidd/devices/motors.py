@@ -35,17 +35,17 @@ class StageAero(MotorBundle):
 
     #   TODO:
     #   update with acutal PV
-    kx      = Component(EpicsMotor, "$TRKX_PV", name='kx_trans')  # x motion with kohzu stage
-    ky      = Component(EpicsMotor, "$TRKY_PV", name='ky_trans')  # y motion with kohzu stage
-    kz      = Component(EpicsMotor, "$TRKZ_PV", name='kz_trans')  # z motion with kohzu stage
-    kx_tilt = Component(EpicsMotor, "$TTKX_PV", name='kx_tilt')   # kohzu tilt motion along x
-    kz_tilt = Component(EpicsMotor, "$TTKZ_PV", name='kz_tilt')   # kohzu tilt motion along z
+    kx          = Component(EpicsMotor, "6idhedm:m42", name='kx_trans')  # x motion with kohzu stage
+    ky          = Component(EpicsMotor, "6idhedm:m40", name='ky_trans')  # y motion with kohzu stage
+    kz          = Component(EpicsMotor, "6idhedm:m41", name='kz_trans')  # z motion with kohzu stage
+    kx_tilt     = Component(EpicsMotor, "6idhedm:m43", name='kx_tilt')   # kohzu tilt motion along x
+    kz_tilt     = Component(EpicsMotor, "6idhedm:m44", name='kz_tilt')   # kohzu tilt motion along z
 
-    rot     = Component(EpicsMotor, "$ROT_PV",  name='rot_y'  )    # rotation with aero stage
+    rot         = Component(EpicsMotor, "6idhedms1:m1",  name='rot_y'  )    # rotation with aero stage
 
-    x_base  = Component(EpicsMotor, "$TRX_PV",  name='x_trans')    # x motion below aero stage
-    y_base  = Component(EpicsMotor, "$TRY_PV",  name='y_trans')    # y motion below aero stage
-    z_base  = Component(EpicsMotor, "$TRZ_PV",  name='z_trans')    # z motion below aero stage
+    x_base      = Component(EpicsMotor, "6idhedm:m37",  name='x_trans')    # x motion below aero stage
+    tiltx_base  = Component(EpicsMotor, "6idhedm:m38",  name='tiltx_base')    # y motion below aero stage
+    tiltz_base  = Component(EpicsMotor, "6idhedm:m39",  name='tiltz_base')    # z motion below aero stage
 
     @property
     def status(self):
@@ -64,17 +64,17 @@ class StageAero(MotorBundle):
         #   We need to consider what to do when cached positions are not the same
         #   as the physical positions when a motor is manually moved
         self.position_cached = {
-            "kx"       : self.kx.position,
-            "ky"       : self.ky.position,
-            "kz"       : self.kz.position,
-            "kx_tilt"  : self.kx_tilt.position,
-            "kz_tilt"  : self.kz_tilt.position,
+            "kx"            : self.kx.position,
+            "ky"            : self.ky.position,
+            "kz"            : self.kz.position,
+            "kx_tilt"       : self.kx_tilt.position,
+            "kz_tilt"       : self.kz_tilt.position,
 
-            "rot"      : self.rot.position   ,
+            "rot"           : self.rot.position   ,
 
-            "x_base"   : self.x_base.position ,
-            "y_base"   : self.y_base.position ,
-            "z_base"   : self.z_base.position ,
+            "x_base"        : self.x_base.position ,
+            "tiltx_base"    : self.tiltx_base.position ,
+            "tiltz_base"    : self.tiltz_base.position ,
         }
 
     def resume_position(self):
@@ -89,8 +89,8 @@ class StageAero(MotorBundle):
         self.rot.mv(self.position_cached['rot'])
 
         self.x_base.mv(self.position_cached['x_base'])
-        self.y_base.mv(self.position_cached['y_base'])
-        self.z_base.mv(self.position_cached['z_base'])
+        self.tiltx_base.mv(self.position_cached['tiltx_base'])
+        self.tiltx_base.mv(self.position_cached['tiltz_base'])
 
 
 class SimStageAero(MotorBundle):
@@ -98,16 +98,16 @@ class SimStageAero(MotorBundle):
     Simulated Motor stacks used for HT-HEDM
     i.e.:   6iddSIM:m1
     Sim motors assigned as follows:
-        kx      = m1
-        ky      = m2
-        kz      = m3
-        rot     = m4
+        kx          = m1
+        ky          = m2
+        kz          = m3
+        rot         = m4
 
-        kx_tilt = m16
-        kz_tilt = m16
-        x_base  = m16
-        y_base  = m16
-        z_base  = m16
+        kx_tilt     = m16
+        kz_tilt     = m16
+        x_base      = m16
+        tiltx_base  = m16
+        tiltz_base  = m16
 
         ___________________________________
         |   fine translation:  kx,ky,kz   |
@@ -116,24 +116,24 @@ class SimStageAero(MotorBundle):
         |    air-bearing rotation: rot    |
         ===================================
         |  coarse translation below Aero: | 
-        |     x_base, y_base, z_base      |
+        |  x_base, tiltx_base, tiltz_base |
         -----------------------------------
 
     """
 
     #   TODO:
     #   update with acutal PV
-    kx      = Component(EpicsMotor, "6iddSIM:m1", name='kx_trans')  # x motion with kohzu stage
-    ky      = Component(EpicsMotor, "6iddSIM:m2", name='ky_trans')  # y motion with kohzu stage
-    kz      = Component(EpicsMotor, "6iddSIM:m3", name='kz_trans')  # z motion with kohzu stage
-    kx_tilt = Component(EpicsMotor, "6iddSIM:m16", name='kx_tilt')   # kohzu tilt motion along x
-    kz_tilt = Component(EpicsMotor, "6iddSIM:m16", name='kz_tilt')   # kohzu tilt motion along z
+    kx          = Component(EpicsMotor, "6iddSIM:m1", name='kx_trans')  # x motion with kohzu stage
+    ky          = Component(EpicsMotor, "6iddSIM:m2", name='ky_trans')  # y motion with kohzu stage
+    kz          = Component(EpicsMotor, "6iddSIM:m3", name='kz_trans')  # z motion with kohzu stage
+    kx_tilt     = Component(EpicsMotor, "6iddSIM:m16", name='kx_tilt')   # kohzu tilt motion along x
+    kz_tilt     = Component(EpicsMotor, "6iddSIM:m16", name='kz_tilt')   # kohzu tilt motion along z
 
-    rot     = Component(EpicsMotor, "6iddSIM:m4",  name='rot_y'  )    # rotation with aero stage
+    rot         = Component(EpicsMotor, "6iddSIM:m4",  name='rot_y'  )    # rotation with aero stage
 
-    x_base  = Component(EpicsMotor, "6iddSIM:m16",  name='x_trans')    # x motion below aero stage
-    y_base  = Component(EpicsMotor, "6iddSIM:m16",  name='y_trans')    # y motion below aero stage
-    z_base  = Component(EpicsMotor, "6iddSIM:m16",  name='z_trans')    # z motion below aero stage
+    x_base      = Component(EpicsMotor, "6iddSIM:m16",  name='x_trans')    # x motion below aero stage
+    tiltx_base  = Component(EpicsMotor, "6iddSIM:m16",  name='tiltx_trans')    # y motion below aero stage
+    tiltz_base  = Component(EpicsMotor, "6iddSIM:m16",  name='tiltz_trans')    # z motion below aero stage
 
     @property
     def status(self):
@@ -161,8 +161,8 @@ class SimStageAero(MotorBundle):
             "rot"      : self.rot.position   ,
 
             "x_base"   : self.x_base.position ,
-            "y_base"   : self.y_base.position ,
-            "z_base"   : self.z_base.position ,
+            "tiltx_base"   : self.tiltx_base.position ,
+            "tiltz_base"   : self.tiltz_base.position ,
         }
 
     def resume_position(self):
@@ -177,8 +177,8 @@ class SimStageAero(MotorBundle):
         self.rot.mv(self.position_cached['rot'])
 
         self.x_base.mv(self.position_cached['x_base'])
-        self.y_base.mv(self.position_cached['y_base'])
-        self.z_base.mv(self.position_cached['z_base'])
+        self.tiltx_base.mv(self.position_cached['tiltx_base'])
+        self.tiltz_base.mv(self.position_cached['tiltz_base'])
 
 
 class TaxiFlyScanDevice(Device):
