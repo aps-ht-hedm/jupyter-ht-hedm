@@ -87,10 +87,10 @@ def is_light_on():
     #     Lights on:           ~  0.411 V
     #     Lights fully dimmed: ~  0.302 V
     #     Lights off:          ~ -0.090 V
-    
+
     from epics import caget
     _diode_voltage = caget("6idADAM:adam_6017:1:AI0")
     if _diode_voltage >0.2:
         return True
-        elif _diode_voltage <0.2:
-            return False
+    elif _diode_voltage <0.2:
+        return False
