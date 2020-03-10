@@ -208,11 +208,11 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
         self.cam1.acquire_mode.put("continuous")  # To be checked
         if _nframes < 0:
             # do infinite number of frames....
-            printf("Start taking images with ", _exp," seconds of exposure\n")
-            printf("CTRL + C tp stop...\n")
+            print(f"Start taking images with {_exp} seconds of exposure\n")
+            print(f"CTRL + C tp stop...\n")
         elif _nframes > 0:
-            printf("Start taking ", _nframes, " images with ", _exp," seconds of exposure\n")
-            printf("CTRL + C tp stop...\n")
+            print(f"Start taking {_nframes} images with {_exp} seconds of exposure\n")
+            print(f"CTRL + C tp stop...\n")
             self.cam1.nimages.put(_nframes) # To be updated
 
 
