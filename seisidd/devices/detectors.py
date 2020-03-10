@@ -209,9 +209,11 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
         if _nframes < 0:
             # do infinite number of frames....
             printf("Start taking images with ", _exp," seconds of exposure\n")
-            printf("CTRL + C tp stop...")
-            elif _nframes > 0:
-                self.cam1.nimages.put(_nframes) # To be updated
+            printf("CTRL + C tp stop...\n")
+        elif _nframes > 0:
+            printf("Start taking ", _nframes, " images with ", _exp," seconds of exposure\n")
+            printf("CTRL + C tp stop...\n")
+            self.cam1.nimages.put(_nframes) # To be updated
 
 
 class DexelaDetector(SingleTrigger, AreaDetector):
