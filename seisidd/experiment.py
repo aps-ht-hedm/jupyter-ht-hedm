@@ -26,6 +26,7 @@ from  .devices.motors                import EnsemblePSOFlyDevice
 from  .devices.detectors             import PointGreyDetector, DexelaDetector, SimDetector  
 from  .util                          import dict_to_msg
 from  .util                          import load_config
+from  .util                          import is_light_on
 
 import bluesky.preprocessors as bpp
 import bluesky.plan_stubs    as bps
@@ -290,19 +291,19 @@ class Tomography(Experiment):
             # det.cam1.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             #   need to check this name for assigning the detector
-            det = PointGreyDetector("PV_DET", name='det')
+            det = PointGreyDetector("1idPG4:", name='det')
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
             #
-            epics.caput("PV_DET:cam1:FrameType.ZRST", "/exchange/data_white_pre")
-            epics.caput("PV_DET:cam1:FrameType.ONST", "/exchange/data")
-            epics.caput("PV_DET:cam1:FrameType.TWST", "/exchange/data_white_post")
-            epics.caput("PV_DET:cam1:FrameType.THST", "/exchange/data_dark")
+            epics.caput("1idPG4:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("1idPG4:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("1idPG4:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("1idPG4:cam1:FrameType.THST", "/exchange/data_dark")
             # ophyd need this configuration
-            epics.caput("PV_DET:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
-            epics.caput("PV_DET:cam1:FrameType_RBV.ONST", "/exchange/data")
-            epics.caput("PV_DET:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
-            epics.caput("PV_DET:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            epics.caput("1idPG4:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("1idPG4:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("1idPG4:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("1idPG4:cam1:FrameType_RBV.THST", "/exchange/data_dark")
             # set the layout file for cam
             # TODO:  need to udpate with acutal config files for 6-ID-D
             _current_fp = str(pathlib.Path(__file__).parent.absolute())
@@ -339,6 +340,11 @@ class Tomography(Experiment):
         # setup detector
         # TODO:
         # actual implementation need to be for 6-ID-D
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #                           ||
+        #                            ======> HDF1
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')       
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
         yield from bps.mv(det.proc1.enable, 1)
@@ -446,8 +452,8 @@ class Tomography(Experiment):
         det                 = self.tomo_det
         tomostage           = self.tomo_stage
         # TODO: commented for Sim test
-        # shutter             = self.shutter
-        # shutter_suspender   = self.suspend_shutter
+        shutter             = self.shutter
+        shutter_suspender   = self.suspend_shutter
         beam                = self.tomo_beam
         
         # load experiment configurations
