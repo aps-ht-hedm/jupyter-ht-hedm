@@ -168,6 +168,7 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
     proc1 = ADComponent(ProcessPlugin,     suffix="Proc1:")  # processing
     tiff1 = ADComponent(TIFFPlugin,        suffix="TIFF1:")  # tiff output
     hdf1  = ADComponent(HDF5Plugin6IDD,    suffix="HDF1:" )  # HDF5 output
+    trans1= ADComponent(TransformPlugin,   suffix="TRANS1:") # Transform images
 
     @property
     def status(self):
