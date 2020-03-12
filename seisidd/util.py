@@ -75,3 +75,22 @@ def repeat_exp(plan_func, n=1):
     """
     for _ in range(n):
         yield from plan_func
+
+def is_light_on():
+    """
+    Return the status of the light inside the hutch
+    True: Light is on
+    Flase: Light is off
+    """
+
+    # Typical diode readings:
+    #     Lights on:           ~  0.411 V
+    #     Lights fully dimmed: ~  0.302 V
+    #     Lights off:          ~ -0.090 V
+
+    from epics import caget
+    _diode_voltage = caget("6idADAM:adam_6017:1:AI0")
+    if _diode_voltage >0.2:
+        return True
+    elif _diode_voltage <0.2:
+        return False
