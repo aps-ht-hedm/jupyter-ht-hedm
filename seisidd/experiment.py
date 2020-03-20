@@ -342,11 +342,13 @@ class Tomography(Experiment):
         # actual implementation need to be for 6-ID-D
         # Raw images go through the following plugins:
         #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
-        #                           ||
-        #                            ======> HDF1
+        #        ||                 ||
+        #         ==> IMAGE1         ======> HDF1
+   
         yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')       
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
-        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.trans1.enable, 1)  
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.enable_filter, 1)
         yield from bps.mv(det.proc1.filter_type, 'Average')
@@ -372,9 +374,15 @@ class Tomography(Experiment):
         # TODO:
         #   Need to toggle Fast shutter
         det = self.tomo_det
-    
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #        ||                 ||
+        #         ==> IMAGE1         ======> HDF1
+
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')  
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.trans1.enable, 1) 
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.enable_filter, 1)
         yield from bps.mv(det.proc1.filter_type, 'Average')
@@ -395,8 +403,14 @@ class Tomography(Experiment):
         
         # TODO:
         # the fields need to be updated for 6-ID-D
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #        ||                 ||
+        #         ==> IMAGE1         ======> HDF1
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.trans1.enable, 1) 
         yield from bps.mv(det.proc1.enable, 1)
         yield from bps.mv(det.proc1.enable_filter, 1)
         yield from bps.mv(det.proc1.filter_type, 'Average')
@@ -423,9 +437,22 @@ class Tomography(Experiment):
         
         # TODO:
         #   The fields need to be updated for 6-ID-D
-        yield from bps.mv(det.hdf1.nd_array_port, 'PG1')
-        yield from bps.mv(det.tiff1.nd_array_port, 'PG1')
-    
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #        ||                 ||
+        #         ==> IMAGE1         ======> HDF1
+        # TODO:
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
+        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.trans1.enable, 1) 
+        yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
+        yield from bps.mv(det.proc1.reset_filter, 1)
+        yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames'])
+
         # we are assuming that the global psofly is available
         yield from bps.mv(
             psofly.start,           cfg_tomo['omega_start'],
