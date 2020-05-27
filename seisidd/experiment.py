@@ -680,10 +680,59 @@ class NearField(Experiment):
         self.fly_control    = NearField.get_flycontrol(self._mode)
         self.nf_det         = NearField.get_detector(self._mode)
         self.nf_beam        = NearField.get_nfbeam(self._mode)
+        
+        if mode.lower() in ['debug']:
+            # take an image to prime the tiff1 and hdf1 plugin
+            self.nf_det.cam1.acquire_time.put(0.001)
+            self.nf_det.cam1.acquire_period.put(0.005)
+            self.nf_det.cam1.image_mode.put('Continuous')
+
+            self.nbf_det.tiff1.auto_increment.put(0)
+            self.nbf_det.tiff1.capture.put(0)
+            self.nbf_det.tiff1.enable.put(1)
+            self.nbf_det.tiff1.file_name.put('prime_my_tiff')
+            self.nbf_det.cam1.acquire.put(1)
+            sleep(0.01)
+            self.nf_det.cam1.acquire.put(0)
+            self.nf_det.tiff1.enable.put(0)
+            self.nf_det.tiff1.auto_increment.put(1)
+
+            self.nf_det.hdf1.auto_increment.put(0)
+            self.nf_det.hdf1.capture.put(0)
+            self.nf_det.hdf1.enable.put(1)
+            self.nf_det.hdf1.file_name.put('prime_my_hdf')
+            self.nf_det.cam1.acquire.put(1)
+            sleep(0.01)
+            self.nf_det.cam1.acquire.put(0)
+            self.nf_det.hdf1.enable.put(0)
+            self.nf_det.hdf1.auto_increment.put(1)
+
+            # set up auto save for tiff and hdf
+            self.nf_det.tiff1.auto_save.put(1)
+            self.nf_det.hdf1.auto_save.put(1)
+            
+            # turn on proc1 filter
+            self.nf_det.proc1.enable_filter.put(1)
+            self.nf_det.proc1.auto_reset_filter.put(1)
+            self.nf_det.proc1.filter_callbacks.put(1) 
+            # 0 for 'Every array'; 1 for 'Every N only'
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
-        # 
+    
+    @property
+    def mode(self):
+        return f"current mode is {self._mode}, available options are ['debug'. 'dryrun', 'production']"
+
+    @mode.setter
+    def mode(self, newmode):
+        self._mode       = newmode
+        self.shutter     = Experiment.get_main_shutter(self._mode)
+        self.nf_stage    = NearField.get_nfstage(self._mode)
+        self.fly_control = NearField.get_flycontrol(self._mode)
+        self.nf_det      = NearField.get_detector(self._mode)
+        self.nf_beam     = NearField.get_nfbeam(self._mode)
+
     def check(self, cfg):
         """Return user input before run"""
         print(f"NearField configuration:\n{dict_to_msg(cfg['nf'])}")
@@ -721,6 +770,15 @@ class NearField(Experiment):
         # TODO:
         #   verbose string representation of the experiment and beamline
         #   status as a dictionary -> yaml 
+
+    def calibration(self):
+        """Perform beamline calibration"""
+        # TODO:
+        #  Propose not to do calibration here
+        #  Calibration should be done in a seperate module, limit experiment to data collection.
+        #  Should log calibration in RunEngine as well.
+        
+        pass
 
     @staticmethod
     def get_nfbeam(mode):
@@ -777,18 +835,20 @@ class NearField(Experiment):
             epics.caput("6iddSIMDET1:cam1:FrameType_RBV.THST", "/exchange/data_dark")
             # set the layout file for cam
             # TODO:  need to udpate with acutal config files for 6-ID-D
-            _current_fp = str(pathlib.Path(__file__).parent.absolute())
-            _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
-            _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
-            det.cam1.nd_attributes_file.put(_attrib_fp)
-            det.hdf1.xml_file_name.put(_layout_fp)
-            # turn off the problematic auto setting in cam
-            det.cam1.auto_exposure_auto_mode.put(0)  
-            det.cam1.sharpness_auto_mode.put(0)
-            det.cam1.gain_auto_mode.put(0)
-            det.cam1.frame_rate_auto_mode.put(0)
+            # commented out for Sim test
+            # _current_fp = str(pathlib.Path(__file__).parent.absolute())
+            # _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+            # _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+            # det.cam1.nd_attributes_file.put(_attrib_fp)
+            # det.hdf1.xml_file_name.put(_layout_fp)
+            # # turn off the problematic auto setting in cam
+            # det.cam1.auto_exposure_auto_mode.put(0)  
+            # det.cam1.sharpness_auto_mode.put(0)
+            # det.cam1.gain_auto_mode.put(0)
+            # det.cam1.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
-            det = PointGreyDetector("PV_DET", name='det')
+            # TODO: Need to make sure this is correct
+            det = PointGreyDetector("1idPG5:", name='det')
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
             #
@@ -824,6 +884,7 @@ class NearField(Experiment):
     def calibration(self):
         """Image calibration for the two NF z positions"""
         det     = self.nf_det
+        # TODO: what needs to be done here
         # add the z motor?
         # add the beamstp motor?
         pass
@@ -1057,10 +1118,61 @@ class FarField(Experiment):
         self.fly_control    = FarField.get_flycontrol(self._mode)
         self.ff_det         = FarField.get_detector(self._mode)
         self.ff_beam        = FarField.get_ffbeam(self._mode)
+
+    # TODO: Do we need to do this for the farfield? 
+    if mode.lower() in ['debug']:
+            # take an image to prime the tiff1 and hdf1 plugin
+            self.ff_det.cam1.acquire_time.put(0.001)
+            self.ff_det.cam1.acquire_period.put(0.005)
+            self.ff_det.cam1.image_mode.put('Continuous')
+
+            self.ff_det.tiff1.auto_increment.put(0)
+            self.ff_det.tiff1.capture.put(0)
+            self.ff_det.tiff1.enable.put(1)
+            self.ff_det.tiff1.file_name.put('prime_my_tiff')
+            self.ff_det.cam1.acquire.put(1)
+            sleep(0.01)
+            self.ff_det.cam1.acquire.put(0)
+            self.ff_det.tiff1.enable.put(0)
+            self.ff_det.tiff1.auto_increment.put(1)
+
+            self.ff_det.hdf1.auto_increment.put(0)
+            self.ff_det.hdf1.capture.put(0)
+            self.ff_det.hdf1.enable.put(1)
+            self.ff_det.hdf1.file_name.put('prime_my_hdf')
+            self.ff_det.cam1.acquire.put(1)
+            sleep(0.01)
+            self.ff_det.cam1.acquire.put(0)
+            self.ff_det.hdf1.enable.put(0)
+            self.ff_det.hdf1.auto_increment.put(1)
+
+            # set up auto save for tiff and hdf
+            self.ff_det.tiff1.auto_save.put(1)
+            self.ff_det.hdf1.auto_save.put(1)
+            
+            # turn on proc1 filter
+            self.ff_det.proc1.enable_filter.put(1)
+            self.ff_det.proc1.auto_reset_filter.put(1)
+            self.ff_det.proc1.filter_callbacks.put(1) 
+            # 0 for 'Every array'; 1 for 'Every N only'
+
         # TODO:
         # we need to do some initialization with Beam based on 
         # a cached/lookup table
-        # 
+    
+    @property
+    def mode(self):
+        return f"current mode is {self._mode}, available options are ['debug', 'dryrun', 'production']"
+    
+    @mode.setter
+    def mode(self, newmode):
+        self._mode       = newmode
+        self.shutter     = Experiment.get_main_shutter(self._mode)
+        self.ff_stage    = FarField.get_ffstage(self._mode)
+        self.fly_control = FarField.get_flycontrol(self._mode)
+        self.ff_det      = FarField.get_detector(self._mode)
+        self.ff_beam     = FarField.get_ffbeam(self._mode)
+         
     
     def check(self, cfg):
         """Return user input before run"""
@@ -1099,6 +1211,22 @@ class FarField(Experiment):
         #   verbose string representation of the experiment and beamline
         #   status as a dictionary -> yaml 
         """
+    def calibration(self):
+        """Perform beamline calibration"""
+        # TODO:
+        #  Should probably do this in a seperate module
+        #  Still not clear how calibration can be done automatically, but
+        #  let's keep a function here as a place holder
+        #  Check out this auto alignment to see if some functions can be used here
+        #  https://github.com/AdvancedPhotonSource/auto_sample_alignment.git
+        #  Per conversation with Peter, This package can return the same location on the pin
+        #  according to the images.  However, they are requesting more features like determine 
+        #  the slit position and size.
+        #  Jun and Peter will test this code during the first week of October, let wait for their feedback.
+        
+        pass
+
+
 
     @staticmethod
     def get_ffbeam(mode):
@@ -1205,7 +1333,7 @@ class FarField(Experiment):
     #   NOT to be used in scan plans
     def calibration(self):
         """Far field calibration for detectors"""
-        det     = self.ff_det
+        det = self.ff_det
         # TODO:
         #   add the z motor?
         #   not sure what we need here
