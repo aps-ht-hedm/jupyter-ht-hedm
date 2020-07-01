@@ -214,7 +214,7 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
         elif _nframes > 0:
             print(f"Start taking {_nframes} images with {_exp} seconds of exposure\n")
             print(f"CTRL + C tp stop...\n")
-            self.cam1.nimages.put(_nframes) # To be updated
+            self.cam1.n_images.put(_nframes) # To be updated
 
 
 class DexelaDetector(SingleTrigger, AreaDetector):
