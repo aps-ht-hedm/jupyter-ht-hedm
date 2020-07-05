@@ -1,0 +1,10 @@
+<?xml version="1.0" standalone="no" ?>
+<hdf_layout>
+    <global name="detector_data_destination" ndattribute="SaveDest" />
+    <group name="exchange">
+      <dataset name="data_white_pre"   source="detector"/>
+      <dataset name="data"             source="detector"/> 
+      <dataset name="data_white_post"  source="detector"/>
+      <dataset name="data_dark"        source="detector"/>
+    </group>   
+</hdf_layout>

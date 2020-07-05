@@ -40,14 +40,10 @@ class Experiment:
         # self.db = databroker.Broker.named("mongodb_config")
         # self.RE.subscribe(self.db.insert)
         self.RE.subscribe(BestEffortCallback())
-
         self._mode   = mode
-        if mode.lower() in ['production']:
-            from apstools.devices import ApsMachineParametersDevice
-            self._aps    = ApsMachineParametersDevice(name="APS")
-            self.shutter = Experiment.get_main_shutter(mode)
-            self.suspend_shutter = SuspendFloor(self.shutter.pss_state, 1)
-
+        self.shutter = Experiment.get_main_shutter(mode)
+        self.suspend_shutter = SuspendFloor(self.shutter.pss_state, 1)  
+    
         # TODO:
         # create fast shutter here
         # for 1id the fast shutter PV is 
@@ -61,9 +57,11 @@ class Experiment:
         # i.e. control with sweep: epics_put(sprintf("%s",FS_control_PV), "Sweep", SGtime)
         # still not entirely sure how this works, maybe bluesky already has this trigger mode?
 
-
         # monitor APS current
-        if mode.lower() in ['dryrun', 'production']:
+        # NOTE: only start monitoring APS ring status during production
+        if mode.lower() in ['production']:
+            from apstools.devices import ApsMachineParametersDevice
+            self._aps    = ApsMachineParametersDevice(name="APS")
             self.suspend_APS_current = SuspendFloor(self._aps.current, 2, resume_thresh=10)
             self.RE.install_suspender(self.suspend_APS_current)
 
@@ -97,12 +95,14 @@ class Experiment:
         """Return fast shutter"""
         # TODO: implement the fast shutter, then instantiate it here
         pass
-    
+
+
 class Tomography(Experiment):
     """Tomography experiment control for 6-ID-D."""
     
     def __init__(self, mode='debug'):
-        Experiment.__init__(self, mode)
+        super(Tomography, self).__init__(mode)
+#         Super.__init__(self, mode)
         self._mode = mode
         # instantiate device
         self.tomo_stage  = Tomography.get_tomostage(self._mode)
@@ -165,6 +165,7 @@ class Tomography(Experiment):
          
     def check(self, cfg):
         """Return user input before run"""
+        cfg = load_config(cfg) if type(cfg) != dict else cfg
         print(f"Tomo configuration:\n{dict_to_msg(cfg['tomo'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
 
@@ -307,8 +308,8 @@ class Tomography(Experiment):
             # set the layout file for cam
             # TODO:  need to udpate with acutal config files for 6-ID-D
             _current_fp = str(pathlib.Path(__file__).parent.absolute())
-            _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
-            _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+            _attrib_fp = os.path.join(_current_fp, 'config/PG4_attributes.xml')
+            _layout_fp = os.path.join(_current_fp, 'config/tomo6idd_layout.xml')
             det.cam1.nd_attributes_file.put(_attrib_fp)
             det.hdf1.xml_file_name.put(_layout_fp)
             # turn off the problematic auto setting in cam1
@@ -318,6 +319,10 @@ class Tomography(Experiment):
             det.cam1.frame_rate_auto_mode.put(0)
         else:
             raise ValueError(f"Invalide mode, {mode}")
+            
+        det.proc1.filter_callbacks.put(1)   # 0 Every array; 1 Array N only (useful for taking bg)
+        det.proc1.auto_reset_filter.put(1)  # ALWAYS auto reset filter
+
         return det
 
     # ----- pre-defined scan plans starts from here
@@ -534,29 +539,28 @@ class Tomography(Experiment):
         if self._mode.lower() in ['dryrun', 'production']:
             # set attenuation
             _attenuation = cfg['tomo']['attenuation']
-            yield from bps.mv(beam.att.att_level, _attenuation)
+            yield from bps.mv(beam.att._motor, _attenuation)
             # check energy
             # need to be clear what we want to do here
             _energy_foil = cfg['tomo']['energyfoil']
-            yield from bps.mv(beam.foil, _energy_foil)      # need to complete this part in beamline.py
+            yield from bps.mv(beam.foil._motor, _energy_foil)      # need to complete this part in beamline.py
             # TODO:
             #   Instead of setting the beam optics, just check the current setup
             #   and print it out for user infomation.
             # current beam size
-            cfg['tomo']['beamsize_h']     = beam.s1.h_size
-            cfg['tomo']['beamsize_v']     = beam.s1.v_size
+            # TODO:
+            # use softIOC to provide shortcut to resize slits
+#             cfg['tomo']['beamsize_h']     = beam.s1.h_size
+#             cfg['tomo']['beamsize_v']     = beam.s1.v_size
             # current lenses (proposed...)
             cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
             # current attenuation
-            cfg['tomo']['attenuation']    = beam.att.att_level
+            cfg['tomo']['attenuation']    = beam.att._motor.get()
             # check energy? may not be necessary.
-
 
         # TODO:
         #   set up FS controls
         #   decide what to do with the focus lenses
-
-
 
         # calculate slew speed for fly scan
         # https://github.com/decarlof/tomo2bm/blob/master/flir/libs/aps2bm_lib.py
@@ -586,8 +590,12 @@ class Tomography(Experiment):
         ###############################################
         ## step 0.9: print out the cfg for user info ##
         ############################################### 
-        self.check(cfg)    
-
+        self.check(cfg)
+        
+        # NOTE: file path cannot be used with bps.mv, leading to a timeout error
+        for me in [det.tiff1, det.hdf1]:
+            me.file_path.put(fp)
+        
         @bpp.stage_decorator([det])
         @bpp.run_decorator()
         def scan_closure():
@@ -600,9 +608,9 @@ class Tomography(Experiment):
             # config output
             if self._mode.lower() in ['dryrun','production']:
                 for me in [det.tiff1, det.hdf1]:
-                    yield from bps.mv(me.file_path, fp)
                     yield from bps.mv(me.file_name, fn)
-                    yield from bps.mv(me.file_write_mode, 2)
+#                     yield from bps.mv(me.file_path, fp)
+                    yield from bps.mv(me.file_write_mode, 2)  # 1: capture, 2: stream
                     yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
             elif self._mode.lower() in ['debug']:
@@ -610,7 +618,7 @@ class Tomography(Experiment):
                     # TODO: file path will lead to time out error in Sim test
                     # yield from bps.mv(me.file_path, '/data')
                     yield from bps.mv(me.file_name, fn)
-                    yield from bps.mv(me.file_write_mode, 2)
+                    yield from bps.mv(me.file_write_mode, 2) # 1: capture, 2: stream
                     yield from bps.mv(me.auto_increment, 1)
                     yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))
@@ -626,6 +634,10 @@ class Tomography(Experiment):
             else:
                 raise ValueError(f"Unsupported output type {cfg['output']['type']}")
 
+            # setting acquire_time and acquire_period
+            yield from bps.mv(det.cam1.acquire_time, acquire_time)
+            yield from bps.mv(det.cam1.acquire_period, acquire_period)    
+                
             # collect front white field
             yield from bps.mv(det.cam1.frame_type, 0)  # for HDF5 dxchange data structure
             yield from self.collect_white_field(cfg['tomo'], atfront=True)
@@ -633,9 +645,6 @@ class Tomography(Experiment):
             # collect projections
             yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
             if cfg['tomo']['type'].lower() == 'step':
-                # setting acquire_time and acquire_period
-                yield from bps.mv(det.cam1.acquire_time, acquire_time)
-                yield from bps.mv(det.cam1.acquire_period, acquire_period)
                 # run step_scan
                 yield from self.step_scan(cfg['tomo'])
             elif cfg['tomo']['type'].lower() == 'fly':
@@ -673,7 +682,7 @@ class NearField(Experiment):
     """NF-HEDM control for 6-ID-D"""
     
     def __init__(self, mode='debug'):
-        Experiment.__init__(self, mode)
+        super(NearField, self).__init__(mode)
         self._mode = mode
         # instantiate device
         self.nf_stage       = NearField.get_nfstage(self._mode)
@@ -735,6 +744,7 @@ class NearField(Experiment):
 
     def check(self, cfg):
         """Return user input before run"""
+        cfg = load_config(cfg) if type(cfg) != dict else cfg
         print(f"NearField configuration:\n{dict_to_msg(cfg['nf'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
 
@@ -848,19 +858,24 @@ class NearField(Experiment):
             # det.cam1.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             # TODO: Need to make sure this is correct
-            det = PointGreyDetector("1idPG5:", name='det')
+            # change to PG4 for testing
+            det = PointGreyDetector("1idPG4:", name='det')
+            # TODO:
+            # Change the motor PV to the actual motor that moves the detector along z-axis
+            from ophyd import EpicsMotor
+            det.cam1.nfposition = EpicsMotor("6idhedm:m41:", name='nfposition')
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
             #
-            epics.caput("PV_DET:cam1:FrameType.ZRST", "/exchange/data_white_pre")
-            epics.caput("PV_DET:cam1:FrameType.ONST", "/exchange/data")
-            epics.caput("PV_DET:cam1:FrameType.TWST", "/exchange/data_white_post")
-            epics.caput("PV_DET:cam1:FrameType.THST", "/exchange/data_dark")
+            epics.caput("1idPG4:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("1idPG4:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("1idPG4:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("1idPG4:cam1:FrameType.THST", "/exchange/data_dark")
             # ophyd need this configuration
-            epics.caput("PV_DET:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
-            epics.caput("PV_DET:cam1:FrameType_RBV.ONST", "/exchange/data")
-            epics.caput("PV_DET:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
-            epics.caput("PV_DET:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            epics.caput("1idPG4:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("1idPG4:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("1idPG4:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("1idPG4:cam1:FrameType_RBV.THST", "/exchange/data_dark")
             # set the layout file for cam
             # TODO:  need to udpate with acutal config files for 6-ID-D
             _current_fp = str(pathlib.Path(__file__).parent.absolute())
@@ -875,6 +890,10 @@ class NearField(Experiment):
             det.cam1.frame_rate_auto_mode.put(0)
         else:
             raise ValueError(f"Invalide mode, {mode}")
+            
+        det.proc1.filter_callbacks.put(1)   # 0 Every array; 1 Array N only (useful for taking bg)
+        det.proc1.auto_reset_filter.put(1)  # ALWAYS auto reset filter
+
         return det
 
     ############################
@@ -993,10 +1012,10 @@ class NearField(Experiment):
         #   Instead of setting the beam optics, just check the current setup
         #   and print it out for user infomation.
         # current beam size
-        cfg['nf']['beamsize_h']     = beam.s1.h_size
-        cfg['nf']['beamsize_v']     = beam.s1.v_size
+#         cfg['nf']['beamsize_h']     = beam.s1.h_size
+#         cfg['nf']['beamsize_v']     = beam.s1.v_size
         # current lenses (proposed...)
-        cfg['nf']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        cfg['nf']['focus_beam']     = beam.l1.l1y.position == 10  # to see if focusing is used
         # current attenuation
         # TODO: commented for Sim testing
         # cfg['nf']['attenuation']    = beam.att.att_level
@@ -1038,7 +1057,8 @@ class NearField(Experiment):
         #########################################
         ##  Function for NF Single Layer Scan  ##
         #########################################
-
+        self.check(cfg)    
+        
         @bpp.stage_decorator([det])         
         @bpp.run_decorator()
         def scan_singlelayer(self, cfg_nf, _layer_number):
@@ -1069,11 +1089,11 @@ class NearField(Experiment):
 
             # collect projections in the current layer in the FIRST det z position
             yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
-            yield from bps.mv(det.cam1.position, cfg_nf['detector_z_position']['nf_z1']) # need actual motor
+            yield from bps.mv(det.cam1.nfposition, cfg_nf['detector_z_position']['nf_z1']) # need actual motor
             yield from self.fly_scan(cfg['nf'])
 
             # collect projections in the current layer in the SECOND det z position
-            yield from bps.mv(det.cam1.position, cfg_nf['detector_z_position']['nf_z2']) # need actual motor
+            yield from bps.mv(det.cam1.nfposition, cfg_nf['detector_z_position']['nf_z2']) # need actual motor
             yield from self.fly_scan(cfg['nf'])
             
             #  TODO:
@@ -1091,14 +1111,14 @@ class NearField(Experiment):
             _scan_positions = np.arange(1, n_layers+1, 1)
             for _layer_number_count in _scan_positions:
                 yield from bps.mv(stage.ky, ky_start)
-                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['nf'], _layer_number_count)     ### NOT sure if this works!!!
         # For regular scans
         elif ky_step != 0:
             _layer_number_count  = 1
             _scan_positions = np.arange(ky_start, ky_start+(n_layers-0.5)*ky_step, ky_step)
             for _current_scan_ky in _scan_positions:
                 yield from bps.mv(stage.ky, _current_scan_ky)
-                yield from scan_singlelayer(self, cfg['ff'], _layer_number_count)     ### NOT sure if this works!!!
+                yield from scan_singlelayer(self, cfg['nf'], _layer_number_count)     ### NOT sure if this works!!!
                 _layer_number_count += 1
 
     #   summarize_plan with config yml file
@@ -1111,7 +1131,7 @@ class FarField(Experiment):
     """FF-HEDM control for 6-ID-D"""
     
     def __init__(self, mode='debug'):
-        Experiment.__init__(self, mode)
+        super(FarField, self).__init__(mode)
         self._mode = mode
         # instantiate device
         self.ff_stage       = FarField.get_ffstage(self._mode)
@@ -1119,8 +1139,8 @@ class FarField(Experiment):
         self.ff_det         = FarField.get_detector(self._mode)
         self.ff_beam        = FarField.get_ffbeam(self._mode)
 
-    # TODO: Do we need to do this for the farfield? 
-    if mode.lower() in ['debug']:
+        # TODO: Do we need to do this for the farfield? 
+        if mode.lower() in ['debug']:
             # take an image to prime the tiff1 and hdf1 plugin
             self.ff_det.cam1.acquire_time.put(0.001)
             self.ff_det.cam1.acquire_period.put(0.005)
@@ -1156,9 +1176,9 @@ class FarField(Experiment):
             self.ff_det.proc1.filter_callbacks.put(1) 
             # 0 for 'Every array'; 1 for 'Every N only'
 
-        # TODO:
-        # we need to do some initialization with Beam based on 
-        # a cached/lookup table
+            # TODO:
+            # we need to do some initialization with Beam based on 
+            # a cached/lookup table
     
     @property
     def mode(self):
@@ -1176,6 +1196,7 @@ class FarField(Experiment):
     
     def check(self, cfg):
         """Return user input before run"""
+        cfg = load_config(cfg) if type(cfg) != dict else cfg
         print(f"FarField configuration:\n{dict_to_msg(cfg['ff'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
 
@@ -1295,21 +1316,23 @@ class FarField(Experiment):
             det.cam1.frame_rate_auto_mode.put(0)
         elif mode.lower() in ['dryrun', 'production']:
             ### TODO:
-            ###     Need to get have the Dexela configured in Devices.py
-            det = DexelaDetector("PV_DET", name='det')
-            """
+            det = PointGreyDetector("1idPG4:", name='det')
+            # TODO:
+            # Change the motor PV to the actual motor that moves the detector along z-axis
+            from ophyd import EpicsMotor
+            det.cam1.nfposition = EpicsMotor("6idhedm:m41:", name='nfposition')
             # check the following page for important information
             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
             #
-            epics.caput("PV_DET:cam1:FrameType.ZRST", "/exchange/data_white_pre")
-            epics.caput("PV_DET:cam1:FrameType.ONST", "/exchange/data")
-            epics.caput("PV_DET:cam1:FrameType.TWST", "/exchange/data_white_post")
-            epics.caput("PV_DET:cam1:FrameType.THST", "/exchange/data_dark")
+            epics.caput("1idPG4:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+            epics.caput("1idPG4:cam1:FrameType.ONST", "/exchange/data")
+            epics.caput("1idPG4:cam1:FrameType.TWST", "/exchange/data_white_post")
+            epics.caput("1idPG4:cam1:FrameType.THST", "/exchange/data_dark")
             # ophyd need this configuration
-            epics.caput("PV_DET:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
-            epics.caput("PV_DET:cam1:FrameType_RBV.ONST", "/exchange/data")
-            epics.caput("PV_DET:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
-            epics.caput("PV_DET:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+            epics.caput("1idPG4:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+            epics.caput("1idPG4:cam1:FrameType_RBV.ONST", "/exchange/data")
+            epics.caput("1idPG4:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+            epics.caput("1idPG4:cam1:FrameType_RBV.THST", "/exchange/data_dark")
             # set the layout file for cam
             # TODO:  need to udpate with acutal config files for 6-ID-D
             _current_fp = str(pathlib.Path(__file__).parent.absolute())
@@ -1317,14 +1340,45 @@ class FarField(Experiment):
             _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
             det.cam1.nd_attributes_file.put(_attrib_fp)
             det.hdf1.xml_file_name.put(_layout_fp)
-            # turn off the problematic auto setting in cam1
+            # turn off the problematic auto setting in cam
             det.cam1.auto_exposure_auto_mode.put(0)  
             det.cam1.sharpness_auto_mode.put(0)
             det.cam1.gain_auto_mode.put(0)
             det.cam1.frame_rate_auto_mode.put(0)
-            """
+            ###     Need to get have the Dexela configured in Devices.py
+#             det = DexelaDetector("PV_DET", name='det')
+#             """
+#             # check the following page for important information
+#             # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
+#             #
+#             epics.caput("PV_DET:cam1:FrameType.ZRST", "/exchange/data_white_pre")
+#             epics.caput("PV_DET:cam1:FrameType.ONST", "/exchange/data")
+#             epics.caput("PV_DET:cam1:FrameType.TWST", "/exchange/data_white_post")
+#             epics.caput("PV_DET:cam1:FrameType.THST", "/exchange/data_dark")
+#             # ophyd need this configuration
+#             epics.caput("PV_DET:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+#             epics.caput("PV_DET:cam1:FrameType_RBV.ONST", "/exchange/data")
+#             epics.caput("PV_DET:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+#             epics.caput("PV_DET:cam1:FrameType_RBV.THST", "/exchange/data_dark")
+#             # set the layout file for cam
+#             # TODO:  need to udpate with acutal config files for 6-ID-D
+#             _current_fp = str(pathlib.Path(__file__).parent.absolute())
+#             _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
+#             _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
+#             det.cam1.nd_attributes_file.put(_attrib_fp)
+#             det.hdf1.xml_file_name.put(_layout_fp)
+#             # turn off the problematic auto setting in cam1
+#             det.cam1.auto_exposure_auto_mode.put(0)  
+#             det.cam1.sharpness_auto_mode.put(0)
+#             det.cam1.gain_auto_mode.put(0)
+#             det.cam1.frame_rate_auto_mode.put(0)
+#             """
         else:
             raise ValueError(f"Invalide mode, {mode}")
+
+        det.proc1.filter_callbacks.put(1)   # 0 Every array; 1 Array N only (useful for taking bg)
+        det.proc1.auto_reset_filter.put(1)  # ALWAYS auto reset filter
+
         return det
 
     ###########################
@@ -1492,10 +1546,10 @@ class FarField(Experiment):
         #   Instead of setting the beam optics, just check the current setup
         #   and print it out for user infomation.
         # current beam size
-        cfg['ff']['beamsize_h']     = beam.s1.h_size
-        cfg['ff']['beamsize_v']     = beam.s1.v_size
+#         cfg['ff']['beamsize_h']     = beam.s1.h_size
+#         cfg['ff']['beamsize_v']     = beam.s1.v_size
         # current lenses (proposed...)
-        cfg['ff']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+        cfg['ff']['focus_beam']     = beam.l1.l1y.position == 10  # to see if focusing is used
         # current attenuation
         # TODO: att_level commented out for Sim test
         # cfg['ff']['attenuation']    = beam.att.att_level
@@ -1544,7 +1598,8 @@ class FarField(Experiment):
         #########################################
         ##  Function for FF Single Layer Scan  ##
         #########################################
-
+        self.check(cfg)    
+        
         @bpp.stage_decorator([det])         
         @bpp.run_decorator()
         def scan_singlelayer(self, cfg_ff, _layer_number):
@@ -1587,7 +1642,7 @@ class FarField(Experiment):
                 yield from self.step_scan(cfg['ff'])
             elif cfg['ff']['type'].lower() == 'fly':
                 # yield from bps.mv(det.cam1.position, cfg_ff['detector_z_position']['ff_z1']) # need actual motor
-                yield from self.fly_scan(cfg['nf'])
+                yield from self.fly_scan(cfg['ff'])
             else:
                 raise ValueError(f"Unsupported scan type: {cfg['ff']['type']}")
 

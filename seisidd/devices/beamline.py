@@ -4,6 +4,7 @@
 This module contains beamline specific control macros and functions.
 """
 
+from ophyd   import Device
 from ophyd   import MotorBundle
 from ophyd   import EpicsMotor
 from ophyd   import Component
@@ -25,6 +26,7 @@ class SlitUpstream(MotorBundle):
     v_tp    =   Component(EpicsMotor, "6idhedm:m2",                  name='v_tp'     )   # vertial top
     v_bt    =   Component(EpicsMotor, "6idhedm:m3",                  name='v_bt'     )   # vertial bottom
     # v_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upVsize.VAL",  name='v_size'   )   # vertical size !!!!!need to check this
+        
 
 class SlitDownstream(MotorBundle):
     """Downstream slit that controls the four blades that form the beam"""
@@ -35,6 +37,7 @@ class SlitDownstream(MotorBundle):
     v_bt    =   Component(EpicsMotor, "6idhedm:m34",                 name='v_bt'     )
     # v_size  =   Component(EpicsMotor, "1ide1:Kohzu_E_upVsize.VAL",  name='v_size'   )   # vertical size !!!!!need to check this
 
+    
 ### Per Peter, only motion in the y direction is allowed to avoid accidents
 ### consider comment out all the other PV accesses.
 class FocusLens1(MotorBundle):
@@ -89,9 +92,11 @@ class FocusLens4(MotorBundle):
     # l4tz    =   Component(EpicsMotor, "PV_lens4_tiltz",     name='l4tz'     )
 
 
-class Attenuator():
+class Attenuator(Device):
     """Attenuator control"""
-
+    
+    _motor = Component(EpicsMotor, "6idhedm:m6", name='_motor')
+    
     # TODO:
     #   Lack of sufficient information to implement
     #   * set_atten() ?? 
@@ -115,7 +120,8 @@ class Attenuator():
     #
     # TODO:
     #  class level lookup table to map att_level to attenuation
-    
+    # TODO:
+    #  consult Peter and write a class/static function to return the attenuation level based on materials
     
     _att_level_spreadsheet = {
         0   :   0     ,
@@ -144,37 +150,35 @@ class Attenuator():
         23  :   50
     }
 
-    #   This is the total range for current att_levels
+    # This is the total range for current att_levels
     # TODO:
     #   update this range with actual setup
     _att_range = tuple(range(24))  
 
-    #   initialize and find the current attenuation
-    #   it may be better to initialize atten at maximum
-    def __init__(self, att_level=0):
-        self._att_level = att_level
-        self.att_level  = self._att_level
-        self._motor = Component(EpicsMotor, "6idhedm:m6", name='_motor'  )
-
-    @property
-    def att_level(self):
-        return self._att_level
-
-    @att_level.setter       # what's this?
-    def att_level(self, new_att_level):
-        if new_att_level in Attenuator._att_range:
-            self._motor.mv(new_att_level)       # may need to do (new_att_level-12) depending on motor setup
-            self._att_level = new_att_level
-        else:
-            raise ValueError(f"Requested attentuation level {new_att_level} is out of range!!!"
-                               "\n            Please choose attenuation level from (0 1 2 3 ... ... 21 22 23) ")
+    # initialize and find the current attenuation
+    # it may be better to initialize atten at maximum
+#     def __init__(self, att_level=0):
+#         self._att_level = att_level
+#         self._motor = 
     
-    @property
-    def attenuation(self):
-        return Attenuator._att_level_spreadsheet[self._att_level]
+# Let pyepics handles the feedback
+#     @property
+#     def att_level(self):
+#         return self._att_level
 
+#     @att_level.setter
+#     def att_level(self, new_att_level):
+#         if new_att_level in Attenuator._att_range:
+#             self._motor.mv(new_att_level)       # may need to do (new_att_level-12) depending on motor setup
+#             self._att_level = new_att_level
+#             print(f"TODO: need some informative meesage about changes in the attenuation")
+#         else:
+#             raise ValueError(f"Requested attentuation level {new_att_level} is out of range!!!"
+#                                "\n            Please choose attenuation level from (0 1 2 3 ... ... 21 22 23) ")
 
-    
+#     @property
+#     def attenuation(self):
+#         return f"Current attenuation set to: {Attenuator._att_level_spreadsheet[self._att_level]}"
 
     # def get_attenuation(self):
     #     current_atten = atten[self.attenuator.position]
@@ -190,11 +194,11 @@ class Attenuator():
     #     print(self.current_attenuation)
 
     # pass
-
+    
 
 class Beam():
     """Provide full control of the beam."""
-
+    
     #   I'm not quite sure if it is safe to do all this here. /JasonZ
     def __init__(self):
         self.s1         = SlitUpstream(name='s1')
@@ -205,8 +209,8 @@ class Beam():
         self.l2         = FocusLens2(name='l2')
         self.l3         = FocusLens3(name='l3')
         self.l4         = FocusLens4(name='l4')
-        self.att        = Attenuator()
-        self.foil       = EnergyFoil()         # may need to do the energy calibration outside Beam, manually
+        self.att        = Attenuator(name='att')
+        self.foil       = EnergyFoil(name='foil')         # may need to do the energy calibration outside Beam, manually
 
     def __repr__(self):
         """Return the current beam status"""
@@ -214,8 +218,8 @@ class Beam():
         #   ic readings? maybe
         #   current att level and attenuation
         #   beam energy
-
         # __repr__ to be implemented
+        pass
 
     @property
     def status(self):
@@ -233,61 +237,70 @@ class Beam():
         #   Seems like we don't need this any more
         pass
 
+    
+class sim_s1(MotorBundle):
+    h_ib   = Component(EpicsMotor, "6iddSIM:m16", name='h_ib')
+    h_ob   = Component(EpicsMotor, "6iddSIM:m16", name='h_ob')
+    h_size = Component(EpicsMotor, "6iddSIM:m16", name='h_size') 
+    v_tp   = Component(EpicsMotor, "6iddSIM:m16", name='v_tp')
+    v_bt   = Component(EpicsMotor, "6iddSIM:m16", name='v_bt')
+    v_size = Component(EpicsMotor, "6iddSIM:m16", name='v_size')   
+    
+    
+class sim_s2(MotorBundle):
+        h_ib   = Component(EpicsMotor, "6iddSIM:m16", name='h_ib')
+        h_ob   = Component(EpicsMotor, "6iddSIM:m16", name='h_ob')
+        h_size = Component(EpicsMotor, "6iddSIM:m16", name='h_size') 
+        v_tp   = Component(EpicsMotor, "6iddSIM:m16", name='v_tp')
+        v_bt   = Component(EpicsMotor, "6iddSIM:m16", name='v_bt')
+        v_size = Component(EpicsMotor, "6iddSIM:m16", name='v_size')  
+        
+class sim_l1(MotorBundle):
+        l1x    = Component(EpicsMotor, "6iddSIM:m16", name='l1x')
+        l1y    = Component(EpicsMotor, "6iddSIM:m16", name='l1y')
+        l1z    = Component(EpicsMotor, "6iddSIM:m16", name='l1z')
+        l1rot  = Component(EpicsMotor, "6iddSIM:m16", name='l1rot')
+        l1tx   = Component(EpicsMotor, "6iddSIM:m16", name='l1tx')
+        l1tz   = Component(EpicsMotor, "6iddSIM:m16", name='l1tz')
 
+        
+class sim_l2(MotorBundle):
+        l2x    = Component(EpicsMotor, "6iddSIM:m16", name='l2x')
+        l2y    = Component(EpicsMotor, "6iddSIM:m16", name='l2y')
+        l2z    = Component(EpicsMotor, "6iddSIM:m16", name='l2z')
+        l2rot  = Component(EpicsMotor, "6iddSIM:m16", name='l2rot')
+        l2tx   = Component(EpicsMotor, "6iddSIM:m16", name='l2tx')
+        l2tz   = Component(EpicsMotor, "6iddSIM:m16", name='l2tz')
+        
+        
+class sim_l3(MotorBundle):
+        l3x    = Component(EpicsMotor, "6iddSIM:m16", name='l3x')
+        l3y    = Component(EpicsMotor, "6iddSIM:m16", name='l3y')
+        l3z    = Component(EpicsMotor, "6iddSIM:m16", name='l3z')
+        l3rot  = Component(EpicsMotor, "6iddSIM:m16", name='l3rot')
+        l3tx   = Component(EpicsMotor, "6iddSIM:m16", name='l3tx')
+        l3tz   = Component(EpicsMotor, "6iddSIM:m16", name='l3tz')
+        
+class sim_l4(MotorBundle):
+        l4x    = Component(EpicsMotor, "6iddSIM:m16", name='l4x')
+        l4y    = Component(EpicsMotor, "6iddSIM:m16", name='l4y')
+        l4z    = Component(EpicsMotor, "6iddSIM:m16", name='l4z')
+        l4rot  = Component(EpicsMotor, "6iddSIM:m16", name='l4rot')
+        l4tx   = Component(EpicsMotor, "6iddSIM:m16", name='l4tx')
+        l4tz   = Component(EpicsMotor, "6iddSIM:m16", name='l4tz')
 
 class SimBeam():
     """Provide full control of the beam."""
 
     #   I'm not quite sure if it is safe to do all this here. /JasonZ
     def __init__(self):
-        #   Upstream slit, slit1
-        self.s1         = MotorBundle(name='s1')
-        self.s1.h_ib    = Component(EpicsMotor, "6iddSIM:m16", name='h_ib')
-        self.s1.h_ob    = Component(EpicsMotor, "6iddSIM:m16", name='h_ob')
-        self.s1.h_size  = Component(EpicsMotor, "6iddSIM:m16", name='h_size')        ### need checking!!
-        self.s1.v_tp    = Component(EpicsMotor, "6iddSIM:m16", name='v_tp')
-        self.s1.v_bt    = Component(EpicsMotor, "6iddSIM:m16", name='v_bt')
-        self.s1.v_size  = Component(EpicsMotor, "6iddSIM:m16", name='v_size')        ### need checking!!
-        #   Downstream slit, slit2
-        self.s2         = MotorBundle(name='s2')
-        self.s2.h_ib    = Component(EpicsMotor, "6iddSIM:m16", name='h_ib')
-        self.s2.h_ob    = Component(EpicsMotor, "6iddSIM:m16", name='h_ob')
-        self.s2.h_size  = Component(EpicsMotor, "6iddSIM:m16", name='h_size')        ### need checking!!
-        self.s2.v_tp    = Component(EpicsMotor, "6iddSIM:m16", name='v_tp')
-        self.s2.v_bt    = Component(EpicsMotor, "6iddSIM:m16", name='v_bt')
-        self.s2.v_size  = Component(EpicsMotor, "6iddSIM:m16", name='v_size')        ### need checking!!
-        #   Focus lens 1
-        self.l1         = MotorBundle(name='l1')
-        # self.l1.l1x     = Component(EpicsMotor, "6iddSIM:m16", name='l1x')
-        self.l1.l1y     = Component(EpicsMotor, "6iddSIM:m16", name='l1y')
-        # self.l1.l1z     = Component(EpicsMotor, "6iddSIM:m16", name='l1z')
-        # self.l1.l1rot   = Component(EpicsMotor, "6iddSIM:m16", name='l1rot')
-        # self.l1.l1tx    = Component(EpicsMotor, "6iddSIM:m16", name='l1tx')
-        # self.l1.l1tz    = Component(EpicsMotor, "6iddSIM:m16", name='l1tz')
-        #   Focus lens 2
-        self.l2         = MotorBundle(name='l2')
-        # self.l2.l1x     = Component(EpicsMotor, "6iddSIM:m16", name='l2x')
-        self.l2.l1y     = Component(EpicsMotor, "6iddSIM:m16", name='l2y')
-        # self.l2.l1z     = Component(EpicsMotor, "6iddSIM:m16", name='l2z')
-        # self.l2.l1rot   = Component(EpicsMotor, "6iddSIM:m16", name='l2rot')
-        # self.l2.l1tx    = Component(EpicsMotor, "6iddSIM:m16", name='l2tx')
-        # self.l2.l1tz    = Component(EpicsMotor, "6iddSIM:m16", name='l2tz')
-        #   Focus lens 3
-        self.l3         = MotorBundle(name='l3')
-        # self.l3.l1x     = Component(EpicsMotor, "6iddSIM:m16", name='l3x')
-        self.l3.l1y     = Component(EpicsMotor, "6iddSIM:m16", name='l3y')
-        # self.l3.l1z     = Component(EpicsMotor, "6iddSIM:m16", name='l3z')
-        # self.l3.l1rot   = Component(EpicsMotor, "6iddSIM:m16", name='l3rot')
-        # self.l3.l1tx    = Component(EpicsMotor, "6iddSIM:m16", name='l3tx')
-        # self.l3.l1tz    = Component(EpicsMotor, "6iddSIM:m16", name='l3tz')
-        #   Focus lens 4
-        self.l4         = MotorBundle(name='l4')
-        # self.l4.l1x     = Component(EpicsMotor, "6iddSIM:m16", name='l4x')
-        self.l4.l1y     = Component(EpicsMotor, "6iddSIM:m16", name='l4y')
-        # self.l4.l1z     = Component(EpicsMotor, "6iddSIM:m16", name='l4z')
-        # self.l4.l1rot   = Component(EpicsMotor, "6iddSIM:m16", name='l4rot')
-        # self.l4.l1tx    = Component(EpicsMotor, "6iddSIM:m16", name='l4tx')
-        # self.l4.l1tz    = Component(EpicsMotor, "6iddSIM:m16", name='l4tz')
+        s1 = sim_s1()
+        s2 = sim_s2()
+        l1 = sim_l1()
+        l2 = sim_l2()
+        l3 = sim_l3()
+        l4 = sim_l4()
+        
 
     def __repr__(self):
         """Return the current beam status"""
@@ -315,8 +328,8 @@ class SimBeam():
         pass    
 
 
-class EnergyFoil():
-    """Energy foil"""
+class EnergyFoil(Device):
+    """Energy foil
     # TODO:
     #   Requir acutal implementation once the nature of the device is known
     #   The following info is from 1ID
@@ -337,35 +350,33 @@ class EnergyFoil():
     # 10  {Ta}          5   0.79  [0.3, 1.3]   409.1 A, 5th SCU1, HEM=5
     # 270 (-90)      {Ir} 0.125mm  76.111     
     """
-    def __init__(self):
-        self.foil           = EnergyFoil.get_energyfoil()
-        self.beam_energy    = EnergyFoil.get_energy()
+    _motor = Component(EpicsMotor, "6idhedm:m7", name='_motor')
     
-    def get_energyfoil(Emon_foil="air"):        # pass the config yml file to select the foil, or,
-                                                # set up a default foil to use?
-        print("E calibration foil in")
+#     def __init__(self):
+#         self.foil           = EnergyFoil.get_energyfoil()
+#         self.beam_energy    = EnergyFoil.get_energy()
+    
+#     def get_energyfoil(Emon_foil="air"):        # pass the config yml file to select the foil, or,
+#                                                 # set up a default foil to use?
+#         print("E calibration foil in")
 
-        if (Emon_foil=="air") mv foil  0 ;  # air
-        if (Emon_foil=="Tb") mv foil  -1 ;  # Tb
-        if (Emon_foil=="Yb") mv foil   3 ;  # Yb
-        if (Emon_foil=="Bi") mv foil   6 ;  # Bi
-        if (Emon_foil=="Ho") mv foil  -6 ;  # Ho
-        if (Emon_foil=="Pb") mv foil  -4 ;  # Pb
-        if (Emon_foil=="Re") mv foil  -2 ;  # Re
-        if (Emon_foil=="Au") mv foil   1 ;  # Au
-        if (Emon_foil=="Pt") mv foil   5 ;  # Pt
-        if (Emon_foil=="Ir") mv foil -10 ;  # Ir
-        if (Emon_foil=="Hf") mv foil  -8 ;  # Hf
-        if (Emon_foil=="Tm") mv foil   8 ;  # Tm
-        if (Emon_foil=="Ta") mv foil  10 ;  # Ta
+#         if (Emon_foil=="air") mv foil  0 ;  # air
+#         if (Emon_foil=="Tb") mv foil  -1 ;  # Tb
+#         if (Emon_foil=="Yb") mv foil   3 ;  # Yb
+#         if (Emon_foil=="Bi") mv foil   6 ;  # Bi
+#         if (Emon_foil=="Ho") mv foil  -6 ;  # Ho
+#         if (Emon_foil=="Pb") mv foil  -4 ;  # Pb
+#         if (Emon_foil=="Re") mv foil  -2 ;  # Re
+#         if (Emon_foil=="Au") mv foil   1 ;  # Au
+#         if (Emon_foil=="Pt") mv foil   5 ;  # Pt
+#         if (Emon_foil=="Ir") mv foil -10 ;  # Ir
+#         if (Emon_foil=="Hf") mv foil  -8 ;  # Hf
+#         if (Emon_foil=="Tm") mv foil   8 ;  # Tm
+#         if (Emon_foil=="Ta") mv foil  10 ;  # Ta
 
-    def get_energy()
-        move out the attenuators and then "count_em"
-
-
-    """
-
-    pass
+    def get_energy():
+        #move out the attenuators and then "count_em"
+        pass
 
 
 #   Check to see how the counter performed.
