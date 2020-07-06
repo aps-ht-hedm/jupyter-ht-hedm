@@ -169,7 +169,6 @@ class Tomography(Experiment):
         print(f"Tomo configuration:\n{dict_to_msg(cfg['tomo'])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
 
-
     def __repr__(self):
         """Return summary of the current experiment status"""
         """
@@ -202,6 +201,7 @@ class Tomography(Experiment):
                       )
         return _status_msg
         """
+        pass
 
         # TODO:
         #   verbose string representation of the experiment and beamline
@@ -218,7 +218,6 @@ class Tomography(Experiment):
         #  according to the images.  However, they are requesting more features like determine 
         #  the slit position and size.
         #  Jun and Peter will test this code during the first week of October, let wait for their feedback.
-        
         pass
 
     @staticmethod
@@ -264,64 +263,53 @@ class Tomography(Experiment):
 
     @staticmethod
     def get_detector(mode):
-        # TODO: implement real PVs
-        if mode.lower() == 'debug':
-            det = SimDetector("6iddSIMDET1:", name='det')
-
-            epics.caput("6iddSIMDET1:cam1:FrameType.ZRST", "/exchange/data_white_pre")
-            epics.caput("6iddSIMDET1:cam1:FrameType.ONST", "/exchange/data")
-            epics.caput("6iddSIMDET1:cam1:FrameType.TWST", "/exchange/data_white_post")
-            epics.caput("6iddSIMDET1:cam1:FrameType.THST", "/exchange/data_dark")
-            # ophyd need this configuration
-            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
-            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.ONST", "/exchange/data")
-            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
-            epics.caput("6iddSIMDET1:cam1:FrameType_RBV.THST", "/exchange/data_dark")
-            # set the layout file for cam
-            # TODO:  need to udpate with acutal config files for 6-ID-D
-            # TODO: commented for Sim test
-            # _current_fp = str(pathlib.Path(__file__).parent.absolute())
-            # _attrib_fp = os.path.join(_current_fp, 'config/PG2_attributes.xml')
-            # _layout_fp = os.path.join(_current_fp, 'config/tomo6bma_layout.xml')
-            # det.cam1.nd_attributes_file.put(_attrib_fp)
-            # det.hdf1.xml_file_name.put(_layout_fp)
-            # turn off the problematic auto setting in cam1
-            # det.cam1.auto_exposure_auto_mode.put(0)  
-            # det.cam1.sharpness_auto_mode.put(0)
-            # det.cam1.gain_auto_mode.put(0)
-            # det.cam1.frame_rate_auto_mode.put(0)
-        elif mode.lower() in ['dryrun', 'production']:
-            #   need to check this name for assigning the detector
-            det = PointGreyDetector("1idPG4:", name='det')
-            # check the following page for important information
-            # https://github.com/BCDA-APS/use_bluesky/blob/master/notebooks/sandbox/images_darks_flats.ipynb
-            #
-            epics.caput("1idPG4:cam1:FrameType.ZRST", "/exchange/data_white_pre")
-            epics.caput("1idPG4:cam1:FrameType.ONST", "/exchange/data")
-            epics.caput("1idPG4:cam1:FrameType.TWST", "/exchange/data_white_post")
-            epics.caput("1idPG4:cam1:FrameType.THST", "/exchange/data_dark")
-            # ophyd need this configuration
-            epics.caput("1idPG4:cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
-            epics.caput("1idPG4:cam1:FrameType_RBV.ONST", "/exchange/data")
-            epics.caput("1idPG4:cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
-            epics.caput("1idPG4:cam1:FrameType_RBV.THST", "/exchange/data_dark")
-            # set the layout file for cam
-            # TODO:  need to udpate with acutal config files for 6-ID-D
-            _current_fp = str(pathlib.Path(__file__).parent.absolute())
-            _attrib_fp = os.path.join(_current_fp, 'config/PG4_attributes.xml')
-            _layout_fp = os.path.join(_current_fp, 'config/tomo6idd_layout.xml')
-            det.cam1.nd_attributes_file.put(_attrib_fp)
-            det.hdf1.xml_file_name.put(_layout_fp)
-            # turn off the problematic auto setting in cam1
-            det.cam1.auto_exposure_auto_mode.put(0)  
-            det.cam1.sharpness_auto_mode.put(0)
-            det.cam1.gain_auto_mode.put(0)
-            det.cam1.frame_rate_auto_mode.put(0)
-        else:
-            raise ValueError(f"Invalide mode, {mode}")
-            
+        det_PV = {
+            'debug':       "6iddSIMDET1:",
+            'dryrun':      "1idPG4:",
+            'production':  "1idPG4:",
+        }[mode.lower()]
+        
+        det = {
+            'debug':       SimDetector(det_PV,  name='det'),
+            'dryrun':      PointGreyDetector(det_PV, name='det'),
+            'production':  PointGreyDetector(det_PV, name='det'),
+        }[mode.lower()]
+        
+        # setup HDF5 layout using a hidden EPICS PV
+        # -- enumerator type
+        # -- need to set both write and RBV field
+        epics.caput(f"{det_PV}cam1:FrameType.ZRST",     "/exchange/data_white_pre")
+        epics.caput(f"{det_PV}cam1:FrameType.ONST",     "/exchange/data")
+        epics.caput(f"{det_PV}cam1:FrameType.TWST",     "/exchange/data_white_post")
+        epics.caput(f"{det_PV}cam1:FrameType.THST",     "/exchange/data_dark")        
+        epics.caput(f"{det_PV}cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+        epics.caput(f"{det_PV}cam1:FrameType_RBV.ONST", "/exchange/data")
+        epics.caput(f"{det_PV}cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+        epics.caput(f"{det_PV}cam1:FrameType_RBV.THST", "/exchange/data_dark")
+        
+        # set the attribute file (det.cam) and the layout file (det.hdf1)
+        # ISSUE:CRITICAL
+        #   we are encoutering some strange issue that preventing the HDF5 plugin to
+        #   function properly.
+        _current_fp = str(pathlib.Path(__file__).parent.absolute())
+        _attrib_fp = os.path.join(_current_fp, 'config/PG4_attributes.xml')
+        _layout_fp = os.path.join(_current_fp, 'config/tomo6idd_layout.xml')
+        det.cam1.nd_attributes_file.put(_attrib_fp)
+        det.hdf1.xml_file_name.put(_layout_fp)
+        
+        # turn off the problematic auto setting in cam1
+        # NOTE:
+        #   These settings should have been cached after a succesful run. We are just ensuring that
+        #   the correct settings are used for the camera to prevent potential loss of cached settings
+        # -- related to auto-* 
+        det.cam1.auto_exposure_auto_mode.put(0)  
+        det.cam1.sharpness_auto_mode.put(0)
+        det.cam1.gain_auto_mode.put(0)
+        det.cam1.frame_rate_auto_mode.put(0)
+        # -- realted to proc1
         det.proc1.filter_callbacks.put(1)   # 0 Every array; 1 Array N only (useful for taking bg)
         det.proc1.auto_reset_filter.put(1)  # ALWAYS auto reset filter
+        # -- ?? more to come
 
         return det
 
