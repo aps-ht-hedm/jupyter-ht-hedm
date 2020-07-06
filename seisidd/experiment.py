@@ -102,49 +102,13 @@ class Tomography(Experiment):
     
     def __init__(self, mode='debug'):
         super(Tomography, self).__init__(mode)
-#         Super.__init__(self, mode)
         self._mode = mode
+        
         # instantiate device
         self.tomo_stage  = Tomography.get_tomostage(self._mode)
         self.fly_control = Tomography.get_flycontrol(self._mode)
-        self.tomo_det    = Tomography.get_detector(self._mode)
+        self.tomo_det    = Tomography.get_detector(self._mode)    # detector is initialized here
         self.tomo_beam   = Tomography.get_tomobeam(self._mode)
-        
-        if mode.lower() in ['debug']:
-            # take an image to prime the tiff1 and hdf1 plugin
-            self.tomo_det.cam1.acquire_time.put(0.001)
-            self.tomo_det.cam1.acquire_period.put(0.005)
-            self.tomo_det.cam1.image_mode.put('Continuous')
-
-            self.tomo_det.tiff1.auto_increment.put(0)
-            self.tomo_det.tiff1.capture.put(0)
-            self.tomo_det.tiff1.enable.put(1)
-            self.tomo_det.tiff1.file_name.put('prime_my_tiff')
-            self.tomo_det.cam1.acquire.put(1)
-            sleep(0.01)
-            self.tomo_det.cam1.acquire.put(0)
-            self.tomo_det.tiff1.enable.put(0)
-            self.tomo_det.tiff1.auto_increment.put(1)
-
-            self.tomo_det.hdf1.auto_increment.put(0)
-            self.tomo_det.hdf1.capture.put(0)
-            self.tomo_det.hdf1.enable.put(1)
-            self.tomo_det.hdf1.file_name.put('prime_my_hdf')
-            self.tomo_det.cam1.acquire.put(1)
-            sleep(0.01)
-            self.tomo_det.cam1.acquire.put(0)
-            self.tomo_det.hdf1.enable.put(0)
-            self.tomo_det.hdf1.auto_increment.put(1)
-
-            # set up auto save for tiff and hdf
-            self.tomo_det.tiff1.auto_save.put(1)
-            self.tomo_det.hdf1.auto_save.put(1)
-            
-            # turn on proc1 filter
-            self.tomo_det.proc1.enable_filter.put(1)
-            self.tomo_det.proc1.auto_reset_filter.put(1)
-            self.tomo_det.proc1.filter_callbacks.put(1) 
-            # 0 for 'Every array'; 1 for 'Every N only'
 
         # TODO:
         # we need to do some initialization with Beam based on 
@@ -306,14 +270,49 @@ class Tomography(Experiment):
         det.cam1.sharpness_auto_mode.put(0)
         det.cam1.gain_auto_mode.put(0)
         det.cam1.frame_rate_auto_mode.put(0)
+        # -- prime camera
+        # NOTE:
+        # By default, all file plugins have no idea the images dimension&size, therefore we need to pump
+        # in an image to let the file plugins know what to expect
+        # ---- get camera ready to keep taking image
+        det.cam1.acquire_time.put(0.001)
+        det.cam1.acquire_period.put(0.005)
+        det.cam1.image_mode.put('Continuous')
+        # ---- get tiff1 primed
+        det.tiff1.auto_increment.put(0)
+        det.tiff1.capture.put(0)
+        det.tiff1.enable.put(1)
+        det.tiff1.file_name.put('prime_my_tiff')
+        det.cam1.acquire.put(1)
+        sleep(0.01)
+        det.cam1.acquire.put(0)
+        det.tiff1.enable.put(0)
+        det.tiff1.auto_increment.put(1)
+        # ---- get hdf1 primed
+        det.hdf1.auto_increment.put(0)
+        det.hdf1.capture.put(0)
+        det.hdf1.enable.put(1)
+        det.hdf1.file_name.put('prime_my_hdf')
+        det.cam1.acquire.put(1)
+        sleep(0.01)
+        det.cam1.acquire.put(0)
+        det.hdf1.enable.put(0)
+        det.hdf1.auto_increment.put(1)
+        # ---- turn on auto save (supercede by disable, so we are safe)
+        det.tiff1.auto_save.put(1)
+        det.hdf1.auto_save.put(1)
         # -- realted to proc1
         det.proc1.filter_callbacks.put(1)   # 0 Every array; 1 Array N only (useful for taking bg)
         det.proc1.auto_reset_filter.put(1)  # ALWAYS auto reset filter
         # -- ?? more to come
+        # -- enter stand-by mode
+        det.cam1.image_mode.put('Multiple')
 
         return det
-
-    # ----- pre-defined scan plans starts from here
+    
+    # --------------------------------------------- #
+    # ----- pre-defined scan plans starts from here #
+    # --------------------------------------------- #
     def collect_white_field(self, cfg_tomo, atfront=True):
         """
         Collect white/flat field images by moving the sample out of the FOV
