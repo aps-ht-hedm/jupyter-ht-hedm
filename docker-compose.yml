@@ -1,0 +1,130 @@
+# Docker composor for the default virtual 6IDD testing ENV
+version: '3.7'
+
+services:
+  caRepeat:
+    container_name: caRepeater
+    restart: always
+    image: kedokudo/epics-base:latest
+    networks:
+      - vn6idd
+    entrypoint:
+      - bin/linux-x86_64/caRepeater
+  
+  ioc6iddsimmtr:
+    container_name: ioc6iddsimmtr
+    restart: always
+    image: kedokudo/ioc6iddsimmtr:latest
+    stdin_open: true
+    tty: true
+    networks:
+      - vn6idd
+    environment:
+      - 'PREFIX=6iddSIM:'
+    expose:
+      - "5064" 
+      - "5065"
+    depends_on:
+      - caRepeat
+    volumes:
+      - .:/home/jupyter-ht-hedm 
+      - ./vbdata/data:/data
+      - ./vbdata/db:/db
+  
+  ioc6iddsimdet:
+    container_name: ioc6iddsimdet
+    restart: always
+    image: kedokudo/ioc6iddsimdet:latest
+    stdin_open: true
+    tty: true
+    networks:
+      - vn6idd
+    environment:
+      - 'AD_PREFIX=6iddSIMDET1:'
+    expose:
+      - "5064" 
+      - "5065"
+    depends_on:
+      - caRepeat
+    volumes:  
+      - ./vbdata/data:/data
+      - ./vbdata/db:/db
+  
+  console:
+    container_name: console
+    image: kedokudo/epics-base:latest
+    stdin_open: true
+    tty: true
+    entrypoint:
+      - /bin/bash
+    networks:
+      - vn6idd
+    depends_on:
+      - caRepeat
+      - ioc6iddsimdet
+      - ioc6iddsimmtr
+    volumes:  
+      - ./vbdata/data:/data
+      - ./vbdata/db:/db
+  
+  vnc:
+    container_name: vnc
+    image: kedokudo/vnc:latest
+    stdin_open: true
+    tty: true
+    environment:
+      - 'PREFIX=6iddSIM:'
+      - 'AD_PREFIX=6iddSIMDET1:'
+      - 'RESOLUTION=1920x1200'
+    networks:
+      - vn6idd
+    ports:
+      - "5901:5901"
+    depends_on:
+      - caRepeat
+      - ioc6iddsimdet
+      - ioc6iddsimmtr
+    volumes:  
+      - ./vbdata/data:/data
+      - ./vbdata/db:/db
+    
+  mongo:
+    container_name: mongoDB
+    restart: always
+    image: mongo
+    networks: 
+      - vn6idd
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./vbdata/db:/data/db
+
+  frontend:
+    container_name: jupyterlab
+    image: kedokudo/jupyter:latest
+    stdin_open: true
+    tty: true
+    networks:
+      - vn6idd
+    ports:
+      - "8899:8888"
+    entrypoint:
+      - "jupyter"
+      - "lab"
+      - "--ip=0.0.0.0"
+      - "--no-browser"
+      - "--allow-root"
+      - "--NotebookApp.token=''"
+    depends_on:
+      - caRepeat
+      - ioc6iddsimdet
+      - ioc6iddsimmtr
+    volumes:
+      - .:/home/jupyter-ht-hedm  
+      - ./vbdata/data:/data
+      - ./seisidd/config:/etc/databroker
+
+networks:
+  vn6idd:
+    driver: bridge
+

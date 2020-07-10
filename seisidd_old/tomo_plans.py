@@ -9,13 +9,17 @@ import bluesky.plans         as bp
 import bluesky.preprocessors as bpp
 import bluesky.plan_stubs    as bps
 
-from utility            import load_config
+from .utility            import load_config
 
 @bpp.run_decorator()
-def collect_white_field(det, tomostage, cfg_tomo, atfront=True):
+def collect_white_field(experiment, cfg_tomo, atfront=True):
     """
     Collect white/flat field images by moving the sample out of the FOV
     """
+    # unpack devices
+    det = experiment.det
+    tomostage = experiment.tomostage
+
     # move sample out of the way
     _x = cfg_tomo['fronte_white_ksamX'] if atfront else cfg_tomo['back_white_ksamX']
     _z = cfg_tomo['fronte_white_ksamZ'] if atfront else cfg_tomo['back_white_ksamZ']
@@ -41,10 +45,12 @@ def collect_white_field(det, tomostage, cfg_tomo, atfront=True):
 
 
 @bpp.run_decorator()
-def collect_dark_field(det, tomostage, cfg_tomo):
+def collect_dark_field(experiment, cfg_tomo):
     """
     Collect dark field images by close the shutter
     """
+    det = experiment.det
+
     yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
     yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
     yield from bps.mv(det.proc1.enable, 1)
@@ -57,10 +63,14 @@ def collect_dark_field(det, tomostage, cfg_tomo):
 
 
 @bpp.run_decorator()
-def step_scan(det, tomostage, cfg_tomo):
+def step_scan(experiment, cfg_tomo):
     """
     Collect projects with step motion
     """
+    # unpack devices
+    det = experiment.det
+    tomostage = experiment.tomostage
+
     yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
     yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
     yield from bps.mv(det.proc1.enable, 1)
@@ -79,11 +89,12 @@ def step_scan(det, tomostage, cfg_tomo):
 
 
 @bpp.run_decorator()
-def fly_scan(det, tomostage, cfg_tomo):
+def fly_scan(experiment, cfg_tomo):
     """
     Collect projections with fly motion
     """
-    psofly = tomostage.psofly
+    det = experiment.det
+    psofly = experiment.psofly
     
     yield from bps.mv(det.hdf1.nd_array_port, 'PG1')
     yield from bps.mv(det.tiff1.nd_array_port, 'PG1')
@@ -107,24 +118,23 @@ def fly_scan(det, tomostage, cfg_tomo):
     yield from bps.wait(group='fly')
 
 
-def tomo_scan(det, tomostage, shutter, shutter_suspender, cfg, init_motors_pos):
+def tomo_scan(experiment, cfg):
     """
     Tomography scan plan based on given configuration
     """
+    # unpack devices
+    det = experiment.det
+    tomostage = experiment.tomostage
+    shutter = experiment.shutter
+    shutter_suspender = experiment.suspend_shutter
     
     cfg = load_config(cfg) if type(cfg) != dict else cfg
 
     # update the cached motor position in the dict in case exp goes wrong
-    init_motors_pos['samX' ] = tomostage.samX.position
-    init_motors_pos['samY' ] = tomostage.samY.position
-    init_motors_pos['ksamX'] = tomostage.ksamX.position
-    init_motors_pos['ksamZ'] = tomostage.ksamZ.position
-    init_motors_pos['preci'] = tomostage.preci.position
+    _cahed_position = experiment.cache_motor_position()
 
     # step 0: preparation
     acquire_time   = cfg['tomo']['acquire_time']
-    acquire_period = cfg['tomo']['acquire_period']
-    n_frames       = cfg['tomo']['n_frames']
     n_white        = cfg['tomo']['n_white']
     n_dark         = cfg['tomo']['n_dark']
     angs = np.arange(
@@ -192,25 +202,25 @@ def tomo_scan(det, tomostage, shutter, shutter_suspender, cfg, init_motors_pos):
 
         # collect front white field
         yield from bps.mv(det.cam.frame_type, 0)  # for HDF5 dxchange data structure
-        yield from collect_white_field(det, tomostage, cfg['tomo'], atfront=True)
+        yield from collect_white_field(experiment, cfg['tomo'], atfront=True)
 
         # collect projections
         yield from bps.mv(det.cam.frame_type, 1)  # for HDF5 dxchange data structure
         if cfg['tomo']['type'].lower() == 'step':
-            yield from step_scan(det, tomostage, cfg['tomo'])
+            yield from step_scan(experiment, cfg['tomo'])
         elif cfg['tomo']['type'].lower() == 'fly':
-            yield from fly_scan(det, tomostage, cfg['tomo'])
+            yield from fly_scan(experiment, cfg['tomo'])
         else:
             raise ValueError(f"Unsupported scan type: {cfg['tomo']['type']}")
 
         # collect back white field
         yield from bps.mv(det.cam.frame_type, 2)  # for HDF5 dxchange data structure
-        yield from collect_white_field(det, tomostage, cfg['tomo'], atfront=False)
+        yield from collect_white_field(experiment, cfg['tomo'], atfront=False)
 
         # collect back dark field
         yield from bps.mv(det.cam.frame_type, 3)  # for HDF5 dxchange data structure
         yield from bps.remove_suspender(shutter_suspender)
         yield from bps.mv(shutter, "close")
-        yield from collect_dark_field(det, tomostage, cfg['tomo'])
+        yield from collect_dark_field(experiment, cfg['tomo'])
 
     return (yield from scan_closure())
