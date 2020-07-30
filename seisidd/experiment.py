@@ -43,8 +43,14 @@ __email__ = "kedokudo@protonmail.com"
 __status__ = "Alpha"
 
 
+# NOTE:
+# Given that all three setup is centered around a (multiplicative of) 360 rotation, we are
+# using a factory pattern to form a loose couple between the acutal scan and the Ophyd
+# representation of the instrument.
+
+
 class Experiment:
-    """Generic expriment handler"""
+    """Experiment class that takes in various setup for different type of scan"""
 
     def __init__(self, setup, mode: str='debug'):
         pass
