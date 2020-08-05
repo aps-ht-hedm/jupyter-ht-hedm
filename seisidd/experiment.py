@@ -70,6 +70,7 @@ class Experiment:
 
         # get the hardware from different setup
         self._mysetup = setup
+        self.beam = setup.get_beam(mode=self._mode)
         self.stage = setup.get_stage(mode=self._mode)
         self.flycontrol = setup.get_flycontrol(mode=self._mode)
         self.detector = setup.get_detector(mode=self._mode)
@@ -124,11 +125,13 @@ class Experiment:
 
     @property
     def mode(self):
-        return f"current mode is {self._mode}, available options are ['debug', 'dryrun', 'production']"
+        """Available modes are ['debug', 'dryrun', 'production']"""
+        return self._mode
 
     @mode.setter
     def mode(self, newmode):
         self._mode = newmode
+        self.beam = setup.get_beam(mode=self._mode)
         self.shutter = Experiment.get_main_shutter(self._mode)
         self.stage = self._mysetup.get_stage(mode=self._mode)
         self.flycontrol = self._mysetup.get_flycontrol(mode=self._mode)
@@ -204,10 +207,23 @@ class Experiment:
 
     # NOTE
     # The following methods are direct call to pyepics, bypassing the RunEngine
+    # These functions are primarily for beamline scientist to adjust the experiment
+    # settings, and these functions are mostly adapted from existing SPEC scripts
+    # TODO
+    # Need to consult Jun and Peter to get a list of functions that need to be translated
+    # input pyepics
 
 
 class Tomography:
     """Tomography setup for HT-HEDM instrument"""
+
+    @staticmethod
+    def get_beam(mode):
+        return {
+            'debug':  SimBeam(),
+            'dryrun': Beam(),
+            'production': Beam(),
+        }[mode]
 
     @staticmethod
     def get_stage(mode):
@@ -227,8 +243,9 @@ class Tomography:
             'dryrun':      EnsemblePSOFlyDevice("6idhedms1:PSOFly1:", name="psofly"),
             'production':  EnsemblePSOFlyDevice("6idhedms1:PSOFly1:", name="psofly"),
             }[mode]
-            
-    def get_detector(self, mode):
+
+    @staticmethod        
+    def get_detector(mode):
         """return the 1idPG4 tomo detector for HT-HEDM"""
         det_PV = {
             'debug':       "6iddSIMDET1:",
@@ -311,11 +328,338 @@ class Tomography:
 
         return det
 
+    @staticmethod
+    def collect_white(experiment, atfront=True):
+        det = experiment.detector
+        tomostage = experiment.stage
+
+        cfg_tomo = experiment.config['tomo']
+
+        # move sample out of the way
+        _x = cfg_tomo['fronte_white_kx'] if atfront else cfg_tomo['back_white_kx']
+        _z = cfg_tomo['fronte_white_kz'] if atfront else cfg_tomo['back_white_kz']
+        yield from bps.mv(tomostage.kx, _x)
+        yield from bps.mv(tomostage.kz, _z)
+
+        # setup detector
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #        ||                 ||
+        #         ==> IMAGE1         ======> HDF1
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')       
+        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.trans1.enable, 1)  
+        yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
+        yield from bps.mv(det.proc1.reset_filter, 1)
+        yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+        yield from bps.mv(det.cam1.trigger_mode, "Internal")
+        yield from bps.mv(det.cam1.image_mode, "Multiple")
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames']*cfg_tomo['n_white'])
+        yield from bps.trigger_and_read([det])
+
+        # move sample back
+        yield from bps.mv(tomostage.kx, cfg_tomo['initial_kx'])
+        yield from bps.mv(tomostage.kz, cfg_tomo['initial_kz'])
+
+
+    @staticmethod
+    def collect_dark(experiment):
+        # NOTE
+        # 6IDD does not have an actual fast shutter yet, so we are skipping the
+        # fast shutter part for now
+        det = experiment.detector
+
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #        ||                 ||
+        #         ==> IMAGE1         ======> HDF1
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')  
+        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.trans1.enable, 1) 
+        yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
+        yield from bps.mv(det.proc1.reset_filter, 1)
+        yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+        yield from bps.mv(det.cam1.trigger_mode, "Internal")
+        yield from bps.mv(det.cam1.image_mode, "Multiple")
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames']*cfg_tomo['n_dark'])
+        yield from bps.trigger_and_read([det])
+
+    @staticmethod
+    def scan(experiment):
+        det = experiment.detector
+        tomostage = experiment.stage
+        mode = experiment.mode
+        shutter = experiment.shutter
+        shutter_suspender = experiment.suspend_shutter
+        cfg = experiment.config
+        
+        # update the cached motor position in the dict in case exp goes wrong
+        _cached_position = tomostage.cache_position()
+
+        #########################
+        ## step 0: preparation ##
+        #########################
+        acquire_time   = cfg['tomo']['acquire_time']
+        acquire_period = cfg['tomo']['acquire_period']
+        n_white        = cfg['tomo']['n_white']
+        n_dark         = cfg['tomo']['n_dark']
+        angs = np.arange(
+            cfg['tomo']['omega_start'], 
+            cfg['tomo']['omega_end']+cfg['tomo']['omega_step']/2,
+            cfg['tomo']['omega_step'],
+        )
+        n_projections = len(angs)
+        cfg['tomo']['n_projections'] = n_projections
+        cfg['tomo']['total_images']  = n_white + n_projections + n_white + n_dark
+        fp = cfg['output']['filepath']
+        fn = cfg['output']['fileprefix']
+
+        # TODO
+        # consider adding an extra step to:
+        #   Perform energy calibration, set intended attenuation
+        #   set the lenses, change the intended slit size
+        #   prime the control of FS
+        
+        #####################################
+        ## step 0.1: check beam parameters ##
+        #####################################
+        # set slit sizes
+        # These are the 1-ID-E controls
+        #   epics_put("1ide1:Kohzu_E_upHsize.VAL", ($1), 10) ##
+        #   epics_put("1ide1:Kohzu_E_dnHsize.VAL", (($1)+0.1), 10) ##
+        #   epics_put("1ide1:Kohzu_E_upVsize.VAL", ($2), 10) ## VERT SIZE
+        #   epics_put("1ide1:Kohzu_E_dnVsize.VAL", ($2)+0.1, 10) ##
+        # _beam_h_size    =   cfg['tomo']['beamsize_h']
+        # _beam_v_size    =   cfg['tomo']['beamsize_v']
+        # yield from bps.mv(beam.s1.h_size, _beam_h_size          )
+        # yield from bps.mv(beam.s1.v_size, _beam_v_size          )
+        # yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
+        # yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
+
+        if mode in ['dryrun', 'production']:
+            # set attenuation
+            _attenuation = cfg['tomo']['attenuation']
+            yield from bps.mv(beam.att._motor, _attenuation)
+            # check energy
+            # need to be clear what we want to do here
+            _energy_foil = cfg['tomo']['energyfoil']
+            yield from bps.mv(beam.foil._motor, _energy_foil)      # need to complete this part in beamline.py
+            # TODO:
+            #   Instead of setting the beam optics, just check the current setup
+            #   and print it out for user infomation.
+            # current beam size
+            # TODO:
+            # use softIOC to provide shortcut to resize slits
+#             cfg['tomo']['beamsize_h']     = beam.s1.h_size
+#             cfg['tomo']['beamsize_v']     = beam.s1.v_size
+            # current lenses (proposed...)
+            cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+            # current attenuation
+            cfg['tomo']['attenuation']    = beam.att._motor.get()
+            # check energy? may not be necessary.
+        
+        # TODO:
+        #   set up FS controls
+        #   decide what to do with the focus lenses
+
+        # calculate slew speed for fly scan
+        # https://github.com/decarlof/tomo2bm/blob/master/flir/libs/aps2bm_lib.py
+        # TODO: considering blue pixels, use 2BM code as ref
+        if cfg['tomo']['type'].lower() == 'fly':
+            scan_time = (acquire_time+cfg['tomo']['readout_time'])*n_projections
+            slew_speed = (angs.max() - angs.min())/scan_time
+            cfg['tomo']['slew_speed'] = slew_speed
+
+        # need to make sure that the sample out position is the same for both front and back
+        x0, z0 = tomostage.kx.position, tomostage.kz.position
+        dfx, dfz = cfg['tomo']['sample_out_position']['kx'], cfg['tomo']['sample_out_position']['kz']
+        rotang = np.radians(cfg['tomo']['omega_end']-cfg['tomo']['omega_start'])
+        rotm = np.array([[ np.cos(rotang), np.sin(rotang)],
+                            [-np.sin(rotang), np.cos(rotang)]])
+        dbxz = np.dot(rotm, np.array([dfx, dfz]))
+        dbx = dbxz[0] if abs(dbxz[0]) > 1e-8 else 0.0
+        dbz = dbxz[1] if abs(dbxz[1]) > 1e-8 else 0.0
+        # now put the value to dict
+        cfg['tomo']['initial_kx']       = x0
+        cfg['tomo']['initial_kz']       = z0
+        cfg['tomo']['fronte_white_kx']  = x0 + dfx
+        cfg['tomo']['fronte_white_kz']  = z0 + dfz
+        cfg['tomo']['back_white_kx']    = x0 + dbx
+        cfg['tomo']['back_white_kz']    = z0 + dbz
+
+        # NOTE: file path cannot be used with bps.mv, leading to a timeout error
+        for me in [det.tiff1, det.hdf1]:
+            me.file_path.put(fp)
+        
+        @bpp.stage_decorator([det])
+        @bpp.run_decorator()
+        def scan_closure():
+            # TODO:
+            #   Somewhere we need to check the light status
+            # open shutter for beam
+            if mode.lower() in ['production']:
+                yield from bps.mv(shutter, 'open')
+                yield from bps.install_suspender(shutter_suspender)
+            # config output
+            if mode.lower() in ['dryrun','production']:
+                for me in [det.tiff1, det.hdf1]:
+                    yield from bps.mv(me.file_name, fn)
+#                     yield from bps.mv(me.file_path, fp)
+                    yield from bps.mv(me.file_write_mode, 2)  # 1: capture, 2: stream
+                    yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
+                    yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
+            elif mode.lower() in ['debug']:
+                for me in [det.tiff1, det.hdf1]:
+                    # TODO: file path will lead to time out error in Sim test
+                    # yield from bps.mv(me.file_path, '/data')
+                    yield from bps.mv(me.file_name, fn)
+                    yield from bps.mv(me.file_write_mode, 2) # 1: capture, 2: stream
+                    yield from bps.mv(me.auto_increment, 1)
+                    yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
+                    yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))
+            
+            if cfg['output']['type'] in ['tif', 'tiff']:
+                yield from bps.mv(det.tiff1.enable, 1)
+                yield from bps.mv(det.tiff1.capture, 1)
+                yield from bps.mv(det.hdf1.enable, 0)
+            elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
+                yield from bps.mv(det.tiff1.enable, 0)
+                yield from bps.mv(det.hdf1.enable, 1)
+                yield from bps.mv(det.hdf1.capture, 1)
+            else:
+                raise ValueError(f"Unsupported output type {cfg['output']['type']}")
+
+            # setting acquire_time and acquire_period
+            yield from bps.mv(det.cam1.acquire_time, acquire_time)
+            yield from bps.mv(det.cam1.acquire_period, acquire_period)    
+                
+            # collect front white field
+            yield from bps.mv(det.cam1.frame_type, 0)  # for HDF5 dxchange data structure
+            yield from Tomography.collect_white(experiment, atfront=True)
+    
+            # collect projections
+            yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
+            if cfg['tomo']['type'].lower() == 'step':
+                yield from Tomography.step_scan(experiment)
+            elif cfg['tomo']['type'].lower() == 'fly':
+                yield from Tomography.fly_scan(experiment)
+            else:
+                raise ValueError(f"Unsupported scan type: {cfg['tomo']['type']}")
+    
+            # collect back white field
+            yield from bps.mv(det.cam1.frame_type, 2)  # for HDF5 dxchange data structure
+            yield from Tomography.collect_white(experiment, atfront=False)
+    
+            # collect back dark field
+            yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
+            
+            # TODO: no shutter available for Sim testing
+            if mode.lower() in ['dryrun', 'production']:
+                yield from bps.remove_suspender(shutter_suspender)
+                yield from bps.mv(shutter, "close")
+
+            yield from Tomography.collect_dark(experiment)
+    
+        return (yield from scan_closure())
+
+    @staticmethod
+    def step_scan(experiment):
+        det = experiment.detector
+        tomostage = experiment.stage
+        cfg_tomo = experiment.config['tomo']
+
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #        ||                 ||
+        #         ==> IMAGE1         ======> HDF1
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
+        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.trans1.enable, 1) 
+        yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
+        yield from bps.mv(det.proc1.reset_filter, 1)
+        yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames'])
+
+        angs = np.arange(
+            cfg_tomo['omega_start'], 
+            cfg_tomo['omega_end']+cfg_tomo['omega_step']/2,
+            cfg_tomo['omega_step'],
+        )
+        for ang in angs:
+            yield from bps.checkpoint()
+            yield from bps.mv(tomostage.rot, ang)
+            yield from bps.trigger_and_read([det])
+
+    @staticmethod
+    def fly_scan(experiment):
+        det = experiment.detector
+        psofly = experiment.flycontrol
+        cfg_tomo = experiment.config['tomo']
+
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #        ||                 ||
+        #         ==> IMAGE1         ======> HDF1
+        # TODO:
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
+        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.trans1.enable, 1) 
+        yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
+        yield from bps.mv(det.proc1.reset_filter, 1)
+        yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames'])
+
+        # we are assuming that the global psofly is available
+        yield from bps.mv(
+            psofly.start,           cfg_tomo['omega_start'],
+            psofly.end,             cfg_tomo['omega_end'],
+            psofly.scan_delta,      abs(cfg_tomo['omega_step']),
+            psofly.slew_speed,      cfg_tomo['slew_speed'],
+        )
+        # taxi
+        yield from bps.mv(psofly.taxi, "Taxi")
+        yield from bps.mv(
+            det.cam1.num_images, cfg_tomo['n_projections'],
+            det.cam1.trigger_mode, "Overlapped",
+        )
+        # start the fly scan
+        yield from bps.trigger(det, group='fly')
+        yield from bps.abs_set(psofly.fly, "Fly", group='fly')
+        yield from bps.wait(group='fly')
 
 class FarField:
     """Far-Field HEDM scan setup for HT-HEDM instrument"""
 
-    pass
+    @staticmethod
+    def get_stage(mode):
+        """return the aerotech stage configuration"""
+        return {
+            "dryrun":     StageAero(name='ffstage'),
+            "production": StageAero(name='ffstage'),
+            "debug":      SimStageAero(name='ffstage'),
+            }[mode]
+    
+    @staticmethod
+    def get_flycontrol(mode):
+        # the mode check should be done at the experiment level
+        from ophyd import sim
+        return {
+            'debug':       sim.flyer1,
+            'dryrun':      EnsemblePSOFlyDevice("6idhedms1:PSOFly1:", name="psofly"),
+            'production':  EnsemblePSOFlyDevice("6idhedms1:PSOFly1:", name="psofly"),
+            }[mode]
 
 
 class NearField:
