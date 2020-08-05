@@ -184,24 +184,30 @@ class Experiment:
     def scan(self, *args, **kwargs):
         """wrapper of the 360 rotation scan plan"""
         if not self._safe2go:
+            print("Cowardly doing a sanity check first")
             summarize_plan(self._mysetup.step_scan(self, *args, **kwargs))
             self._safe2go = True
+            print("Now call scan one more time to start RE")
         else:
             self.RE(self._mysetup.step_scan(self, *args, **kwargs))
 
     def collect_white(self, *args, **kwargs):
         """wrapper of the still white field image acquisition"""
         if not self._safe2go:
+            print("Cowardly doing a sanity check first")
             summarize_plan(self._mysetup.collect_white(self, *args, **kwargs))
             self._safe2go = True
+            print("Now call scan one more time to start RE")
         else:
             self.RE(self._mysetup.collect_white(self, *args, **kwargs))
 
     def collect_dark(self, *args, **kwargs):
         """wrapper of the still dark field image acquisition"""
         if not self._safe2go:
+            print("Cowardly doing a sanity check first")
             summarize_plan(self._mysetup.collect_dark(self, *args, **kwargs))
             self._safe2go = True
+            print("Now call scan one more time to start RE")
         else:
             self.RE(self._mysetup.collect_dark(self, *args, **kwargs))
 
