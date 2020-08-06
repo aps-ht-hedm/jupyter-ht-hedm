@@ -145,6 +145,16 @@ class DexelaDetectorCam6IDD(DexelaDetectorCam):
     pass
 
 
+class GEDetector(SingleTrigger, AreaDetector):
+    """Generic detector abstraction for GE"""
+    # e.g.  det = GEDetector("GE2:", name='det')
+    # TODO
+    # we migth need to switch to raw
+    cam1  = ADComponent(CamBase, suffix="cam1:")
+    proc1 = ADComponent(ProcessPlugin, suffix="Proc1:")
+    tiff1 = ADComponent(TIFFPlugin, suffix="TIFF1:")
+
+
 class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
     """PointGrey Grasshopper3 cam plugin customizations (properties)"""
     auto_exposure_on_off    = ADComponent(EpicsSignalWithRBV, "AutoExposureOnOff")
