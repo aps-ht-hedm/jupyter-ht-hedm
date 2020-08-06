@@ -70,26 +70,30 @@ class Experiment:
         """
         return
             simulated shutter when [dryrun, debug]
-            acutal shutter    when [productio]
-        
-        TODO:CRITICAL
-            need to update with acutal PV for 6-ID-D
-            The mainshutter at 6IDD is a legacy one, which requires some customization or upgrade
+            acutal shutter    when [production]
+            
+        NOTE:
+            for 6IDD only
+            EXAMPLE:
+                    shutter_a = ApsPssShutter("2bma:A_shutter:", name="shutter")
+                    shutter_a.open()
+                    shutter_a.close()
+                    shutter_a.set("open")
+                    shutter_a.set("close")
+                When using the shutter in a plan, be sure to use ``yield from``, such as::
+                    def in_a_plan(shutter):
+                        yield from abs_set(shutter, "open", wait=True)
+                        # do something
+                        yield from abs_set(shutter, "close", wait=True)
+                    RE(in_a_plan(shutter_a))
         """
-        if mode.lower() in ['debug', 'dryrun']:
-            from apstools.devices import SimulatedApsPssShutterWithStatus
-            A_shutter = SimulatedApsPssShutterWithStatus(name="A_shutter")
-        elif mode.lower() == 'production':
-            from apstools.devices import ApsPssShutterWithStatus
-            A_shutter = ApsPssShutterWithStatus(
-                "PA:01ID",                          # This is for 1ID
-                "PA:01ID:STA_A_FES_OPEN_PL",        # This is for 1ID
-                name="A_shutter",
-            )
-        else:
-            raise ValueError(f"Invalide mode, {mode}")
-        
-        return A_shutter
+        from apstools.devices import ApsPssShutter
+        from apstools.devices import SimulatedApsPssShutterWithStatus
+        return {
+            'debug': SimulatedApsPssShutterWithStatus(name="A_shutter"),
+            'dryrun': SimulatedApsPssShutterWithStatus(name="A_shutter"),
+            'production' ApsPssShutter("PA:01ID", name='main_shutter'),
+        }[mode]
 
     @staticmethod
     def get_fast_shutter(mode):
@@ -453,16 +457,46 @@ class Tomography(Experiment):
             psofly.scan_delta,      abs(cfg_tomo['omega_step']),
             psofly.slew_speed,      cfg_tomo['slew_speed'],
         )
+        
+        # preparation for PSO signal
+        # NOTE
+        # need to convert to Ophyd signal to get the 
+        yield from bps.mv(psofly.pulse_type, "Gate")
+        yield from bps.mv(psofly.reset_fgpa, 1)  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        
         # taxi
-        yield from bps.mv(psofly.taxi, "Taxi")
+        yield from bps.mv(psofly.taxi, "Taxi")              # should be equivalent to: caput(6idhedms1:PSOFly1:taxi, "Taxi")
         yield from bps.mv(
             det.cam1.num_images, cfg_tomo['n_projections'],
             det.cam1.trigger_mode, "Overlapped",
         )
+        
+        # 
+        yield from bps.mv(psofly.pso_state,  1)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        1) , re-enable PSO singal
+        
         # start the fly scan
-        yield from bps.trigger(det, group='fly')
+        yield from bps.trigger(det, group='fly')            # should be equivalent to caput(6idhedms1:PSOFly1:fly, 1)
         yield from bps.abs_set(psofly.fly, "Fly", group='fly')
         yield from bps.wait(group='fly')
+        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        
+    def safe_guard(self):
+        """
+        A plan that guarantees
+        1. reset FPGA board
+        2. disable PSO signal to prevent accidental trigger
+        3. disable cam and its plugins in case of emergency stop
+        """
+        det = self.tomo_det
+        psofly = self.fly_control
+        
+        yield from bps.mv(psofly.reset_fgpa, 1)  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        
+        # TODO
+        # decided whether it is safe to force reset detector here...
+        
 
     def tomo_scan(self, cfg):
         """
@@ -584,6 +618,11 @@ class Tomography(Experiment):
         for me in [det.tiff1, det.hdf1]:
             me.file_path.put(fp)
         
+        # TODO:
+        # need a clean up detector to
+        # 1. reset fpga close the fast shutter,  fast shutter is tied to FPGA
+        # 2. disalbe pso signal
+        @bpp.finalize_decorator()
         @bpp.stage_decorator([det])
         @bpp.run_decorator()
         def scan_closure():
