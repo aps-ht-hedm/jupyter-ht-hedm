@@ -199,6 +199,9 @@ class TaxiFlyScanDevice(Device):
     taxi    = Component(EpicsSignal, "taxi", put_complete=True)
     fly     = Component(EpicsSignal, "fly",  put_complete=True)
     
+    reset_fpga = EpicsSignal("6idMZ1:SG:BUFFER-1_IN_Signal.PROC", put_complete=True)
+    pso_state  = EpicsSignal("6idMZ1:SG:AND-1_IN1_Signal",        put_complete=True)  # only accept str as its input
+    
     def plan(self):
         yield from bps.mv(self.taxi, self.taxi.enum_strs[1])
         yield from bps.mv(self.fly, self.fly.enum_strs[1])
