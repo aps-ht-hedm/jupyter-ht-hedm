@@ -72,8 +72,9 @@ class Experiment:
             simulated shutter when [dryrun, debug]
             acutal shutter    when [productio]
         
-        TODO:
+        TODO:CRITICAL
             need to update with acutal PV for 6-ID-D
+            The mainshutter at 6IDD is a legacy one, which requires some customization or upgrade
         """
         if mode.lower() in ['debug', 'dryrun']:
             from apstools.devices import SimulatedApsPssShutterWithStatus
@@ -220,7 +221,7 @@ class Tomography(Experiment):
             from ophyd import sim
             psofly = sim.flyer1
         elif mode.lower() in ['dryrun', 'production']:
-            psofly = EnsemblePSOFlyDevice("PV_FLY", name="psofly")
+            psofly = EnsemblePSOFlyDevice("6idhedms1:PSOFly1:", name="psofly")
         else:
             raise ValueError(f"Invalide mode, {mode}")
         return psofly
