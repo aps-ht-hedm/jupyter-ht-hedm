@@ -143,25 +143,30 @@ class Experiment:
         """
         return
             simulated shutter when [dryrun, debug]
-            acutal shutter    when [productio]
-        
-        TODO:
-            need to update with acutal PV for 6-ID-D
+            acutal shutter    when [production]
+            
+        NOTE:
+            for 6IDD only
+            EXAMPLE:
+                    shutter_a = ApsPssShutter("2bma:A_shutter:", name="shutter")
+                    shutter_a.open()
+                    shutter_a.close()
+                    shutter_a.set("open")
+                    shutter_a.set("close")
+                When using the shutter in a plan, be sure to use ``yield from``, such as::
+                    def in_a_plan(shutter):
+                        yield from abs_set(shutter, "open", wait=True)
+                        # do something
+                        yield from abs_set(shutter, "close", wait=True)
+                    RE(in_a_plan(shutter_a))
         """
-        if mode.lower() in ['debug', 'dryrun']:
-            from apstools.devices import SimulatedApsPssShutterWithStatus
-            A_shutter = SimulatedApsPssShutterWithStatus(name="A_shutter")
-        elif mode.lower() == 'production':
-            from apstools.devices import ApsPssShutterWithStatus
-            A_shutter = ApsPssShutterWithStatus(
-                "PA:01ID",                          # This is for 1ID
-                "PA:01ID:STA_A_FES_OPEN_PL",        # This is for 1ID
-                name="A_shutter",
-            )
-        else:
-            raise ValueError(f"Invalide mode, {mode}")
-        
-        return A_shutter
+        from apstools.devices import ApsPssShutter
+        from apstools.devices import SimulatedApsPssShutterWithStatus
+        return {
+            'debug': SimulatedApsPssShutterWithStatus(name="A_shutter"),
+            'dryrun': SimulatedApsPssShutterWithStatus(name="A_shutter"),
+            'production': ApsPssShutter("PA:01ID", name='main_shutter'),
+        }[mode]
 
     @staticmethod
     def get_fast_shutter(mode):
