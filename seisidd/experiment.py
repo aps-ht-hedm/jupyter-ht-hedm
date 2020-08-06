@@ -508,6 +508,7 @@ class Tomography:
         for me in [det.tiff1, det.hdf1]:
             me.file_path.put(fp)
         
+        @bpp.finalize_decorator(safe_guard(experiment))
         @bpp.stage_decorator([det])
         @bpp.run_decorator()
         def scan_closure():
@@ -639,16 +640,43 @@ class Tomography:
             psofly.scan_delta,      abs(cfg_tomo['omega_step']),
             psofly.slew_speed,      cfg_tomo['slew_speed'],
         )
+        # preparation for PSO signal
+        # NOTE
+        # need to convert to Ophyd signal to get the 
+        yield from bps.mv(psofly.pulse_type, "Gate")
+        yield from bps.mv(psofly.reset_fgpa, 1)  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
         # taxi
         yield from bps.mv(psofly.taxi, "Taxi")
         yield from bps.mv(
             det.cam1.num_images, cfg_tomo['n_projections'],
             det.cam1.trigger_mode, "Overlapped",
         )
+        # ready to fly
+        yield from bps.mv(psofly.pso_state,  1)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        1) , re-enable PSO singal
         # start the fly scan
         yield from bps.trigger(det, group='fly')
         yield from bps.abs_set(psofly.fly, "Fly", group='fly')
         yield from bps.wait(group='fly')
+        # safe guard against accidental triggering
+        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+
+    @staticmethod
+    def safe_guard(experiment):
+        """
+        A plan that guarantees
+        1. reset FPGA board
+        2. disable PSO signal to prevent accidental trigger
+        3. disable cam and its plugins in case of emergency stop
+        """
+        det = experiment.tomo_det
+        psofly = experiment.fly_control
+        
+        yield from bps.mv(psofly.reset_fgpa, 1)  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        
+        # TODO
+        # decided whether it is safe to force reset detector here...
 
 class FarField:
     """Far-Field HEDM scan setup for HT-HEDM instrument"""
