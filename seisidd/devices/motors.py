@@ -32,9 +32,9 @@ class TomoCamStage(MotorBundle):
     """
     #   TODO:
     #   update with acutal set up
-    tomoy          = Component(EpicsMotor, "6idhedm:m48", name='tomoy')  # x motion with kohzu stage
-    tomox          = Component(EpicsMotor, "6idhedm:m45", name='tomox')  # y motion with kohzu stage
-    tomoz          = Component(EpicsMotor, "6idhedm:m46", name='tomoz')  # z motion with kohzu stage
+    tomoy = Component(EpicsMotor, "6idhedm:m48", name='tomoy')  # x motion with kohzu stage
+    tomox = Component(EpicsMotor, "6idhedm:m45", name='tomox')  # y motion with kohzu stage
+    tomoz = Component(EpicsMotor, "6idhedm:m46", name='tomoz')  # z motion with kohzu stage
 
     @property
     def status(self):
@@ -53,9 +53,9 @@ class TomoCamStage(MotorBundle):
         #   We need to consider what to do when cached positions are not the same
         #   as the physical positions when a motor is manually moved
         self.position_cached = {
-            "tomoy"            : self.tomoy.position,
-            "tomox"            : self.tomox.position,
-            "tomoz"            : self.tomoz.position,
+            "tomoy" : self.tomoy.position,
+            "tomox" : self.tomox.position,
+            "tomoz" : self.tomoz.position,
         }
 
 
