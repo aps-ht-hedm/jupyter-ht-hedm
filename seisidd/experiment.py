@@ -160,12 +160,12 @@ class Experiment:
                         yield from abs_set(shutter, "close", wait=True)
                     RE(in_a_plan(shutter_a))
         """
-        from apstools.devices import ApsPssShutter
-        from apstools.devices import SimulatedApsPssShutterWithStatus
+        from .devices.beamline import MainShutter6IDD
+        from apstools.devices  import SimulatedApsPssShutterWithStatus
         return {
             'debug': SimulatedApsPssShutterWithStatus(name="A_shutter"),
             'dryrun': SimulatedApsPssShutterWithStatus(name="A_shutter"),
-            'production': ApsPssShutter("PA:01ID", name='main_shutter'),
+            'production': MainShutter6IDD("6ida1:", name='main_shutter'),
         }[mode]
 
     @staticmethod
@@ -180,7 +180,7 @@ class Experiment:
         # This is mostly as a sanity check, but can also double as a way to
         # record user configuration in the notebook
         cfg = load_config(cfg) if type(cfg) != dict else cfg
-        print(f"Tomo configuration:\n{dict_to_msg(cfg['tomo'])}")
+        print(f"Experiment configuration:\n{dict_to_msg(cfg[self._mysetup.setup_name])}")
         print(f"Output:\n{dict_to_msg(cfg['output'])}")
 
     # NOTE
@@ -227,6 +227,7 @@ class Experiment:
 
 class Tomography:
     """Tomography setup for HT-HEDM instrument"""
+    setup_name = 'tomo'
 
     @staticmethod
     def get_beam(mode):
@@ -265,8 +266,8 @@ class Tomography:
             }[mode]
         
         det = {
-            'debug':       SimDetector(det_PV,  name='det'),
-            'dryrun':      PointGreyDetector(det_PV, name='det'),
+            'debug'     :  SimDetector      (det_PV, name='det'),
+            'dryrun'    :  PointGreyDetector(det_PV, name='det'),
             'production':  PointGreyDetector(det_PV, name='det'),
             }[mode]
         
@@ -303,18 +304,24 @@ class Tomography:
         # NOTE:
         # By default, all file plugins have no idea the images dimension&size, therefore we need to pump
         # in an image to let the file plugins know what to expect
+        # Reset trigger mode
+        det.cam1.trigger_mode.put('Internal')
+        det.cam1.frame_rate_on_off.put(1)
         # ---- get camera ready to keep taking image
         det.cam1.acquire_time.put(0.001)
-        det.cam1.acquire_period.put(0.005)
+        det.cam1.acquire_period.put(0.02)
         det.cam1.image_mode.put('Continuous')
+        # Enable plugins
+        det.image1.enable.put(1)
+        det.proc1.enable.put(1)
+        det.trans1.enable.put(1)
         # ---- get tiff1 primed
         det.tiff1.auto_increment.put(0)
         det.tiff1.capture.put(0)
         det.tiff1.enable.put(1)
         det.tiff1.file_name.put('prime_my_tiff')
         det.cam1.acquire.put(1)
-        sleep(0.01)
-        det.cam1.acquire.put(0)
+        sleep(0.5) # safe number, for potential delay
         det.tiff1.enable.put(0)
         det.tiff1.auto_increment.put(1)
         # ---- get hdf1 primed
@@ -322,8 +329,7 @@ class Tomography:
         det.hdf1.capture.put(0)
         det.hdf1.enable.put(1)
         det.hdf1.file_name.put('prime_my_hdf')
-        det.cam1.acquire.put(1)
-        sleep(0.01)
+        sleep(0.01) # safe to sleep shorter
         det.cam1.acquire.put(0)
         det.hdf1.enable.put(0)
         det.hdf1.auto_increment.put(1)
@@ -333,7 +339,6 @@ class Tomography:
         # -- realted to proc1
         det.proc1.filter_callbacks.put(1)   # 0 Every array; 1 Array N only (useful for taking bg)
         det.proc1.auto_reset_filter.put(1)  # ALWAYS auto reset filter
-        # -- ?? more to come
         # -- enter stand-by mode
         det.cam1.image_mode.put('Multiple')
 
