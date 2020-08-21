@@ -390,8 +390,9 @@ class Tomography:
 
         # Raw images go through the following plugins:
         #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
-        #        ||                 ||
-        #         ==> IMAGE1         ======> HDF1
+        #                 ||          ||
+        #                 ==> IMAGE1  ======> HDF1
+
         yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')  
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
@@ -421,6 +422,11 @@ class Tomography:
         #########################
         ## step 0: preparation ##
         #########################
+        # Store tomo Cam stage XYZ position
+        cfg['tomo']['TomoY'] = det.motors.tomoy.position
+        cfg['tomo']['TomoX'] = det.motors.tomox.position
+        cfg['tomo']['TomoZ'] = det.motors.tomoz.position
+
         acquire_time   = cfg['tomo']['acquire_time']
         acquire_period = cfg['tomo']['acquire_period']
         n_white        = cfg['tomo']['n_white']
@@ -442,9 +448,9 @@ class Tomography:
         #   set the lenses, change the intended slit size
         #   prime the control of FS
         
-        #####################################
-        ## step 0.1: check beam parameters ##
-        #####################################
+        ###################################
+        ## step 1: check beam parameters ##
+        ###################################
         # set slit sizes
         # These are the 1-ID-E controls
         #   epics_put("1ide1:Kohzu_E_upHsize.VAL", ($1), 10) ##
@@ -464,8 +470,8 @@ class Tomography:
             yield from bps.mv(beam.att._motor, _attenuation)
             # check energy
             # need to be clear what we want to do here
-            _energy_foil = cfg['tomo']['energyfoil']
-            yield from bps.mv(beam.foil._motor, _energy_foil)      # need to complete this part in beamline.py
+            # _energy_foil = cfg['tomo']['energyfoil']
+            # yield from bps.mv(beam.foil._motor, _energy_foil)      # need to complete this part in beamline.py
             # TODO:
             #   Instead of setting the beam optics, just check the current setup
             #   and print it out for user infomation.
@@ -497,7 +503,7 @@ class Tomography:
         dfx, dfz = cfg['tomo']['sample_out_position']['kx'], cfg['tomo']['sample_out_position']['kz']
         rotang = np.radians(cfg['tomo']['omega_end']-cfg['tomo']['omega_start'])
         rotm = np.array([[ np.cos(rotang), np.sin(rotang)],
-                            [-np.sin(rotang), np.cos(rotang)]])
+                         [-np.sin(rotang), np.cos(rotang)]])
         dbxz = np.dot(rotm, np.array([dfx, dfz]))
         dbx = dbxz[0] if abs(dbxz[0]) > 1e-8 else 0.0
         dbz = dbxz[1] if abs(dbxz[1]) > 1e-8 else 0.0
@@ -509,16 +515,43 @@ class Tomography:
         cfg['tomo']['back_white_kx']    = x0 + dbx
         cfg['tomo']['back_white_kz']    = z0 + dbz
 
+        #############################################
+        ## step 2: print out the cfg for user info ##
+        ############################################# 
+        experiment.check(cfg)
+
         # NOTE: file path cannot be used with bps.mv, leading to a timeout error
         for me in [det.tiff1, det.hdf1]:
             me.file_path.put(fp)
+
+        # Reset Aero rotation to ~0 if didn;t clean up after previous scan
+        if tomostage.rot.get() > 300:    
+            tomostage.rot._motor_cal_set.put(1)
+            tomostage.rot.dial_value.put(tomostage.rot.dial_readback.get()-360)
+            tomostage.rot._off_value.put(0)
+            tomostage.rot._motor_cal_set.put(0) 
         
+        ################################
+        ## step 3: Check light status ##
+        ################################
+        while is_light_on():
+            print('\a')
+            print("Light is on inside the Hutch!!!")
+            print("Turn off the light!!!")
+            print('\a')
+            print('\n')
+            sleep(5)
+
+        #########################
+        ## step 4: Actual Scan ##
+        #########################
+
         @bpp.finalize_decorator(safe_guard(experiment))
         @bpp.stage_decorator([det])
         @bpp.run_decorator()
         def scan_closure():
             # TODO:
-            #   Somewhere we need to check the light status
+            # Somewhere we need to check the light status
             # open shutter for beam
             if mode.lower() in ['production']:
                 yield from bps.mv(shutter, 'open')
@@ -527,7 +560,7 @@ class Tomography:
             if mode.lower() in ['dryrun','production']:
                 for me in [det.tiff1, det.hdf1]:
                     yield from bps.mv(me.file_name, fn)
-#                     yield from bps.mv(me.file_path, fp)
+                    # yield from bps.mv(me.file_path, fp)
                     yield from bps.mv(me.file_write_mode, 2)  # 1: capture, 2: stream
                     yield from bps.mv(me.num_capture, cfg['tomo']['total_images'])
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
@@ -593,8 +626,8 @@ class Tomography:
 
         # Raw images go through the following plugins:
         #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
-        #        ||                 ||
-        #         ==> IMAGE1         ======> HDF1
+        #                 ||          ||
+        #                 ==> IMAGE1  ======> HDF1
         yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
@@ -624,9 +657,8 @@ class Tomography:
 
         # Raw images go through the following plugins:
         #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
-        #        ||                 ||
-        #         ==> IMAGE1         ======> HDF1
-        # TODO:
+        #                 ||          ||
+        #                 ==> IMAGE1  ======> HDF1
         yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
@@ -640,31 +672,32 @@ class Tomography:
 
         # we are assuming that the global psofly is available
         yield from bps.mv(
-            psofly.start,           cfg_tomo['omega_start'],
-            psofly.end,             cfg_tomo['omega_end'],
-            psofly.scan_delta,      abs(cfg_tomo['omega_step']),
-            psofly.slew_speed,      cfg_tomo['slew_speed'],
-        )
-        # preparation for PSO signal
-        # NOTE
-        # need to convert to Ophyd signal to get the 
+            psofly.start,               cfg_tomo['omega_start'],
+            psofly.end,                 cfg_tomo['omega_end'],
+            psofly.slew_speed,          cfg_tomo['slew_speed'],
+            psofly.scan_delta,          cfg_tomo['scan_delta'],
+            psofly.detector_setup_time, cfg_tomo['detector_setup_time'],
+            )
+        # preparation for PSO signal 
         yield from bps.mv(psofly.pulse_type, "Gate")
-        yield from bps.mv(psofly.reset_fgpa, 1)  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
-        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        yield from bps.mv(psofly.reset_fgpa, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
         # taxi
-        yield from bps.mv(psofly.taxi, "Taxi")
+        yield from bps.mv(stage.rot, cfg_tomo['omega_start'])
+        yield from bps.mv(psofly.taxi, "Taxi")     # should be equivalent to: caput(6idhedms1:PSOFly1:taxi, "Taxi")
+                                                   # Aerotech cannot be in "stop" when use flyer
         yield from bps.mv(
             det.cam1.num_images, cfg_tomo['n_projections'],
-            det.cam1.trigger_mode, "Overlapped",
+            det.cam1.trigger_mode, "Ext. Standard",
         )
         # ready to fly
-        yield from bps.mv(psofly.pso_state,  1)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        1) , re-enable PSO singal
+        yield from bps.mv(psofly.pso_state,  "1")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        1) , re-enable PSO singal
         # start the fly scan
         yield from bps.trigger(det, group='fly')
         yield from bps.abs_set(psofly.fly, "Fly", group='fly')
         yield from bps.wait(group='fly')
         # safe guard against accidental triggering
-        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
 
     @staticmethod
     def safe_guard(experiment):
@@ -677,8 +710,8 @@ class Tomography:
         det = experiment.tomo_det
         psofly = experiment.fly_control
         
-        yield from bps.mv(psofly.reset_fgpa, 1)  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
-        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        yield from bps.mv(psofly.reset_fgpa, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
         
         # TODO
         # decided whether it is safe to force reset detector here...
