@@ -17,6 +17,7 @@ from ophyd   import ProcessPlugin
 from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
 from ophyd   import TransformPlugin
+from ophyd   import ImagePlugin
 
 
 class HDF5Plugin6IDD(HDF5Plugin):
@@ -179,6 +180,7 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
     tiff1 = ADComponent(TIFFPlugin,        suffix="TIFF1:")  # tiff output
     hdf1  = ADComponent(HDF5Plugin6IDD,    suffix="HDF1:" )  # HDF5 output
     trans1= ADComponent(TransformPlugin,   suffix="Trans1:") # Transform images
+    image1= ADComponent(ImagePlugin,       suffix="image1:") #
 
     @property
     def status(self):
