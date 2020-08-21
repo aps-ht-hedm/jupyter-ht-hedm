@@ -63,6 +63,48 @@ class TomoCamStage(MotorBundle):
 # The NFCamStage should have similar structure of the Tomo stage
 
 
+class TomoCamStage(MotorBundle):
+    """
+    Motor stacks used for Tomo Camera
+
+        ___________
+        |   FF Y  |
+        ===========
+        |   FF X  |
+        ===========
+        |   FF Z  |
+        -----------
+
+    """
+    #   TODO:
+    #   update with acutal set up
+    # ffy = Component(EpicsMotor, "6idhedm:m48", name='ffy')  # x motion with kohzu stage
+    ffx = Component(EpicsMotor, "6idhedm:m$$", name='ffz')  # y motion with kohzu stage
+    ffz = Component(EpicsMotor, "6idhedm:m$$", name='ffz')  # z motion with kohzu stage
+
+    @property
+    def status(self):
+        """return full pv list and corresponding values"""
+        # TODO:
+        #   once acutal PVs are known, the implementation should go here
+        #   my thought is to list useful PV status for users,
+        #   a full list should be implemented in the Ultima for dev     /JasonZ
+        #   Maybe print StateAero.position_cached ?
+        pass
+
+    def cache_position(self):
+        """cache current motor positions"""
+        #   Add other motors if any (i.e. Kohzu tilt)
+        # TODO:
+        #   We need to consider what to do when cached positions are not the same
+        #   as the physical positions when a motor is manually moved
+        self.position_cached = {
+            # "ffy" : self.tomoy.position,
+            "ffx" : self.ffx.position,
+            "ffz" : self.ffz.position,
+        }
+
+
 class StageAero(MotorBundle):
     """
     Motor stacks used for HT-HEDM
