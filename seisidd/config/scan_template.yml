@@ -14,6 +14,7 @@ tomo:
   # and then be used for scans. 
   # Before the scan, the parameters used should be presented and logged.
   # ## Beamline optics
+
   energyfoil:   1           #   Ho, Pb, Re, Tb, Air, Au, Yb, Bi, Pt, Ir, Hf, Tm, Ta
   #                         #   probably just need to do once???
   attenuation:  1           # Place hodler. This doesn't seem to be pre-defined for the entire run
@@ -42,9 +43,6 @@ tomo:
   # below are for fly_scan only
   ROT_STAGE_FAST_SPEED:       1   # degree/second,
   accl:                       3   # second,
-  readout_time:  0.001    # detector readout time
-                          # consider using camera name for this if the readout time is standard for each camera
-
 
 nf:
   # TODO: same as tomo
@@ -76,8 +74,7 @@ nf:
   # below are for fly_scan only
   ROT_STAGE_FAST_SPEED:       1   # degree/second,
   accl:                       3   # second,
-  readout_time:  0.001    # detector readout time
-
+  
 ff:
   # TODO: same as tomo
   # ## Beamline optics
@@ -110,7 +107,6 @@ ff:
   # below are for fly_scan only
   ROT_STAGE_FAST_SPEED:       1   # degree/second,
   accl:                       3   # second,
-  readout_time:  0.001    # detector readout time
 
 output:  # we should include the output in each experiment (i.e. tomo, NF, FF)       
 #  filepath:    '/home/beams/S6BM/user_data/2019-2/startup_jun19/tomo/'    # use testing location
