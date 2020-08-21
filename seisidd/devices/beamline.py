@@ -8,6 +8,43 @@ from ophyd   import Device
 from ophyd   import MotorBundle
 from ophyd   import EpicsMotor
 from ophyd   import Component
+from ophyd   import EpicsSignal, EpicsSignalRO
+
+from apstools.devices import ShutterBase
+
+
+class MainShutter6IDD(ShutterBase):
+    """
+    Ophyd class for the main shutter at 6IDD
+    
+    NOTE:
+    There is some dealy (>2s) during the opening and closing of the main shutter, therefore
+    frequent toggling of the main shutter is highly discouraged.
+    """
+    from time import sleep
+
+    open_signal  = Component(EpicsSignal, "AcO8")
+    close_signal = Component(EpicsSignal, "AcO7")
+    state_signal = EpicsSignalRO("PA:06ID:STA_D_SDS_OPEN_PL.VAL")
+    delay_time   = 1.5  # seconds
+
+    @property
+    def state(self):
+        return self.state_signal.get()
+
+    def open(self, timeout=10):
+        self.open_signal.put(1)  # send out open request
+        if self.delay_time > 0:
+            sleep(self.delay_time)
+        if self.open_signal.get() == 1:
+            self.open_signal.put(0)  # cancel the open request, shutter is open now
+
+    def close(self, timeout=10):
+        self.close_signal.put(1)  # send out the close request
+        if self.delay_time > 0:
+            sleep(self.delay_time)
+        if self.close_signal.get() == 1:
+            self.close_signal.put(0)  # cancle the close request, shutter is closed now
 
 
 class SlitUpstream(MotorBundle):
@@ -248,60 +285,61 @@ class sim_s1(MotorBundle):
     
     
 class sim_s2(MotorBundle):
-        h_ib   = Component(EpicsMotor, "6iddSIM:m16", name='h_ib')
-        h_ob   = Component(EpicsMotor, "6iddSIM:m16", name='h_ob')
-        h_size = Component(EpicsMotor, "6iddSIM:m16", name='h_size') 
-        v_tp   = Component(EpicsMotor, "6iddSIM:m16", name='v_tp')
-        v_bt   = Component(EpicsMotor, "6iddSIM:m16", name='v_bt')
-        v_size = Component(EpicsMotor, "6iddSIM:m16", name='v_size')  
+    h_ib   = Component(EpicsMotor, "6iddSIM:m16", name='h_ib')
+    h_ob   = Component(EpicsMotor, "6iddSIM:m16", name='h_ob')
+    h_size = Component(EpicsMotor, "6iddSIM:m16", name='h_size') 
+    v_tp   = Component(EpicsMotor, "6iddSIM:m16", name='v_tp')
+    v_bt   = Component(EpicsMotor, "6iddSIM:m16", name='v_bt')
+    v_size = Component(EpicsMotor, "6iddSIM:m16", name='v_size')  
         
 class sim_l1(MotorBundle):
-        l1x    = Component(EpicsMotor, "6iddSIM:m16", name='l1x')
-        l1y    = Component(EpicsMotor, "6iddSIM:m16", name='l1y')
-        l1z    = Component(EpicsMotor, "6iddSIM:m16", name='l1z')
-        l1rot  = Component(EpicsMotor, "6iddSIM:m16", name='l1rot')
-        l1tx   = Component(EpicsMotor, "6iddSIM:m16", name='l1tx')
-        l1tz   = Component(EpicsMotor, "6iddSIM:m16", name='l1tz')
+    l1x    = Component(EpicsMotor, "6iddSIM:m16", name='l1x')
+    l1y    = Component(EpicsMotor, "6iddSIM:m16", name='l1y')
+    l1z    = Component(EpicsMotor, "6iddSIM:m16", name='l1z')
+    l1rot  = Component(EpicsMotor, "6iddSIM:m16", name='l1rot')
+    l1tx   = Component(EpicsMotor, "6iddSIM:m16", name='l1tx')
+    l1tz   = Component(EpicsMotor, "6iddSIM:m16", name='l1tz')
 
         
 class sim_l2(MotorBundle):
-        l2x    = Component(EpicsMotor, "6iddSIM:m16", name='l2x')
-        l2y    = Component(EpicsMotor, "6iddSIM:m16", name='l2y')
-        l2z    = Component(EpicsMotor, "6iddSIM:m16", name='l2z')
-        l2rot  = Component(EpicsMotor, "6iddSIM:m16", name='l2rot')
-        l2tx   = Component(EpicsMotor, "6iddSIM:m16", name='l2tx')
-        l2tz   = Component(EpicsMotor, "6iddSIM:m16", name='l2tz')
+    l2x    = Component(EpicsMotor, "6iddSIM:m16", name='l2x')
+    l2y    = Component(EpicsMotor, "6iddSIM:m16", name='l2y')
+    l2z    = Component(EpicsMotor, "6iddSIM:m16", name='l2z')
+    l2rot  = Component(EpicsMotor, "6iddSIM:m16", name='l2rot')
+    l2tx   = Component(EpicsMotor, "6iddSIM:m16", name='l2tx')
+    l2tz   = Component(EpicsMotor, "6iddSIM:m16", name='l2tz')
         
         
 class sim_l3(MotorBundle):
-        l3x    = Component(EpicsMotor, "6iddSIM:m16", name='l3x')
-        l3y    = Component(EpicsMotor, "6iddSIM:m16", name='l3y')
-        l3z    = Component(EpicsMotor, "6iddSIM:m16", name='l3z')
-        l3rot  = Component(EpicsMotor, "6iddSIM:m16", name='l3rot')
-        l3tx   = Component(EpicsMotor, "6iddSIM:m16", name='l3tx')
-        l3tz   = Component(EpicsMotor, "6iddSIM:m16", name='l3tz')
+    l3x    = Component(EpicsMotor, "6iddSIM:m16", name='l3x')
+    l3y    = Component(EpicsMotor, "6iddSIM:m16", name='l3y')
+    l3z    = Component(EpicsMotor, "6iddSIM:m16", name='l3z')
+    l3rot  = Component(EpicsMotor, "6iddSIM:m16", name='l3rot')
+    l3tx   = Component(EpicsMotor, "6iddSIM:m16", name='l3tx')
+    l3tz   = Component(EpicsMotor, "6iddSIM:m16", name='l3tz')
+     
         
 class sim_l4(MotorBundle):
-        l4x    = Component(EpicsMotor, "6iddSIM:m16", name='l4x')
-        l4y    = Component(EpicsMotor, "6iddSIM:m16", name='l4y')
-        l4z    = Component(EpicsMotor, "6iddSIM:m16", name='l4z')
-        l4rot  = Component(EpicsMotor, "6iddSIM:m16", name='l4rot')
-        l4tx   = Component(EpicsMotor, "6iddSIM:m16", name='l4tx')
-        l4tz   = Component(EpicsMotor, "6iddSIM:m16", name='l4tz')
+    l4x    = Component(EpicsMotor, "6iddSIM:m16", name='l4x')
+    l4y    = Component(EpicsMotor, "6iddSIM:m16", name='l4y')
+    l4z    = Component(EpicsMotor, "6iddSIM:m16", name='l4z')
+    l4rot  = Component(EpicsMotor, "6iddSIM:m16", name='l4rot')
+    l4tx   = Component(EpicsMotor, "6iddSIM:m16", name='l4tx')
+    l4tz   = Component(EpicsMotor, "6iddSIM:m16", name='l4tz')
+
 
 class SimBeam():
     """Provide full control of the beam."""
 
     #   I'm not quite sure if it is safe to do all this here. /JasonZ
     def __init__(self):
-        s1 = sim_s1()
-        s2 = sim_s2()
-        l1 = sim_l1()
-        l2 = sim_l2()
-        l3 = sim_l3()
-        l4 = sim_l4()
+        s1 = sim_s1(name='s1')
+        s2 = sim_s2(name='s2')
+        l1 = sim_l1(name='l1')
+        l2 = sim_l2(name='l2')
+        l3 = sim_l3(name='l3')
+        l4 = sim_l4(name='l4')
         
-
     def __repr__(self):
         """Return the current beam status"""
         #   slits sizes and positions

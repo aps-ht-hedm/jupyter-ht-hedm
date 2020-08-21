@@ -12,11 +12,14 @@ NOTE:
 from ophyd   import AreaDetector
 from ophyd   import SingleTrigger, EpicsSignalRO, EpicsSignalWithRBV
 from ophyd   import ADComponent
-from ophyd   import CamBase, PointGreyDetectorCam  ## no DexelaDetectorCam in Ophyd
+from ophyd   import CamBase 
+from ophyd   import PointGreyDetectorCam  ## no DexelaDetectorCam in Ophyd
+from ophyd   import PerkinElmerDetectorCam
 from ophyd   import ProcessPlugin
 from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
 from ophyd   import TransformPlugin
+from ophyd   import ImagePlugin
 
 
 class HDF5Plugin6IDD(HDF5Plugin):
@@ -145,30 +148,40 @@ class DexelaDetectorCam6IDD(DexelaDetectorCam):
     pass
 
 
-class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
-    """PointGrey Grasshopper3 cam plugin customizations (properties)"""
-    auto_exposure_on_off    = ADComponent(EpicsSignalWithRBV, "AutoExposureOnOff")
-    auto_exposure_auto_mode = ADComponent(EpicsSignalWithRBV, "AutoExposureAutoMode")
-    sharpness_on_off        = ADComponent(EpicsSignalWithRBV, "SharpnessOnOff")
-    sharpness_auto_mode     = ADComponent(EpicsSignalWithRBV, "SharpnessAutoMode")
-    gamma_on_off            = ADComponent(EpicsSignalWithRBV, "GammaOnOff")
-    shutter_auto_mode       = ADComponent(EpicsSignalWithRBV, "ShutterAutoMode")
-    gain_auto_mode          = ADComponent(EpicsSignalWithRBV, "GainAutoMode")
-    trigger_mode_on_off     = ADComponent(EpicsSignalWithRBV, "TriggerModeOnOff")
-    trigger_mode_auto_mode  = ADComponent(EpicsSignalWithRBV, "TriggerModeAutoMode")
-    trigger_delay_on_off    = ADComponent(EpicsSignalWithRBV, "TriggerDelayOnOff")
-    frame_rate_on_off       = ADComponent(EpicsSignalWithRBV, "FrameRateOnOff")
-    frame_rate_auto_mode    = ADComponent(EpicsSignalWithRBV, "FrameRateAutoMode")
+class GEDetector(SingleTrigger, AreaDetector):
+    """Generic detector abstraction for GE"""
+    # e.g.  det = GEDetector("GE2:", name='det')
+    # TODO
+    # we migth need to switch to raw
+    cam1  = ADComponent(CamBase, suffix="cam1:")
+    proc1 = ADComponent(ProcessPlugin, suffix="Proc1:")
+    tiff1 = ADComponent(TIFFPlugin, suffix="TIFF1:")
 
 
-class PointGreyDetector(SingleTrigger, AreaDetector):
-    """PointGrey Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
+class Varex4343CTCAM6IDD(PerkinElmerDetectorCam):
+    """Varex 4343CT cam plugin customizations based on PerkinElmerDetectorCam(properties)"""
+    #TODO:
+    # Add fields when needed
+    # image_mode           = ADComponent(EpicsSignalWithRBV, "ImageMode")
+    # acquire_time         = ADComponent(EpicsSignalWithRBV, "AcquireTime")
+    # pe_gain              = ADComponent(EpicsSignalWithRBV, "PEGain")
+    # num_images           = ADComponent(EpicsSignalWithRBV, "NumImages")
+    # trigger_mode         = ADComponent(EpicsSignalWithRBV, "TriggerMode")
+    # acquire              = ADComponent(EpicsSignalWithRBV, "Acquire")
+    # wait_for_plugins     = ADComponent(EpicsSignalWithRBV, "WaitForPlugins")
+    # pe_skip_frames       = ADComponent(EpicsSignalWithRBV, "PESkipFrames")
+    pass
 
-    cam1  = ADComponent(PointGreyDetectorCam6IDD, suffix="cam1:" )  # camera
-    proc1 = ADComponent(ProcessPlugin,     suffix="Proc1:")  # processing
-    tiff1 = ADComponent(TIFFPlugin,        suffix="TIFF1:")  # tiff output
-    hdf1  = ADComponent(HDF5Plugin6IDD,    suffix="HDF1:" )  # HDF5 output
-    trans1= ADComponent(TransformPlugin,   suffix="Trans1:") # Transform images
+class Varex4343CT(SingleTrigger, AreaDetector):
+    """Varex 4343CT Detector used at 6-ID-D@APS for ff-HEDM"""
+    #TODO:
+    #verify all these
+    cam1   = ADComponent(Varex4343CTCAM6IDD,       suffix="cam1:"  )  # camera
+    proc1  = ADComponent(ProcessPlugin,            suffix="Proc1:" )  # processing
+    tiff1  = ADComponent(TIFFPlugin,               suffix="TIFF1:" )  # tiff output
+    hdf1   = ADComponent(HDF5Plugin6IDD,           suffix="HDF1:"  )  # HDF5 output
+    trans1 = ADComponent(TransformPlugin,          suffix="Trans1:")  # Transform images
+    image1 = ADComponent(ImagePlugin,              suffix="image1:")  # Image plugin, rarely used in plan
 
     @property
     def status(self):
@@ -205,16 +218,100 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
         acuqre 'b' images with exposure of 'a' seconds
         b is default to -1 to continue acquiring until manual interruption
         """
+        from time import sleep
+
         self.cam1.acquire_time.put(_exp)
-        self.cam1.acquire_mode.put("continuous")  # To be checked
-        if _nframes < 0:
+        self.cam1.image_mode.put("continuous")  # To be checked
+        if _nframes <= 0:
             # do infinite number of frames....
             print(f"Start taking images with {_exp} seconds of exposure\n")
             print(f"CTRL + C tp stop...\n")
-        elif _nframes > 0:
+            sleep(0.5)
+        else:
+            self.cam1.image_mode.put("multiple") 
             print(f"Start taking {_nframes} images with {_exp} seconds of exposure\n")
+            print(f"CTRL + C to stop...\n")
+            self.cam1.num_images.put(_nframes)
+            sleep(0.5) # To be updated
+        self.cam1.acquire.put(1)
+
+class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
+    """PointGrey Grasshopper3 cam plugin customizations (properties)"""
+    auto_exposure_on_off    = ADComponent(EpicsSignalWithRBV, "AutoExposureOnOff")
+    auto_exposure_auto_mode = ADComponent(EpicsSignalWithRBV, "AutoExposureAutoMode")
+    sharpness_on_off        = ADComponent(EpicsSignalWithRBV, "SharpnessOnOff")
+    sharpness_auto_mode     = ADComponent(EpicsSignalWithRBV, "SharpnessAutoMode")
+    gamma_on_off            = ADComponent(EpicsSignalWithRBV, "GammaOnOff")
+    shutter_auto_mode       = ADComponent(EpicsSignalWithRBV, "ShutterAutoMode")
+    gain_auto_mode          = ADComponent(EpicsSignalWithRBV, "GainAutoMode")
+    trigger_mode_on_off     = ADComponent(EpicsSignalWithRBV, "TriggerModeOnOff")
+    trigger_mode_auto_mode  = ADComponent(EpicsSignalWithRBV, "TriggerModeAutoMode")
+    trigger_delay_on_off    = ADComponent(EpicsSignalWithRBV, "TriggerDelayOnOff")
+    frame_rate_on_off       = ADComponent(EpicsSignalWithRBV, "FrameRateOnOff")
+    frame_rate_auto_mode    = ADComponent(EpicsSignalWithRBV, "FrameRateAutoMode")
+
+
+class PointGreyDetector(SingleTrigger, AreaDetector):
+    """PointGrey Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
+
+    cam1   = ADComponent(PointGreyDetectorCam6IDD, suffix="cam1:"  )  # camera
+    proc1  = ADComponent(ProcessPlugin,            suffix="Proc1:" )  # processing
+    tiff1  = ADComponent(TIFFPlugin,               suffix="TIFF1:" )  # tiff output
+    hdf1   = ADComponent(HDF5Plugin6IDD,           suffix="HDF1:"  )  # HDF5 output
+    trans1 = ADComponent(TransformPlugin,          suffix="Trans1:")  # Transform images
+    image1 = ADComponent(ImagePlugin,              suffix="image1:")  # Image plugin, rarely used in plan
+
+    @property
+    def status(self):
+        """List all related PVs and corresponding values"""
+        # TODO:
+        #   provide acutal implementation here
+        return "Not implemented yet"
+
+    @property
+    def help(self):
+        """Return quick summary of the actual specs of the detector"""
+        pass
+
+    @property
+    def position(self):
+        """return the area detector position from the associated motor"""
+        pass
+
+    @position.setter
+    def position(self, new_pos):
+        """move the detector to the new location"""
+        # NOTE:
+        #   This is for interactive control only, cannot be used in scan plan
+        #   We will need to use this position during scan, i.e. near field z scan
+        pass
+
+    # TODO:
+    #  Additional PVs can be wrapped as property for interactive use when the 
+    #  acutal PVs are known.
+
+    def cont_acq(self, _exp, _nframes = -1):
+        """
+        cont_acq(a, b)
+        acuqre 'b' images with exposure of 'a' seconds
+        b is default to -1 to continue acquiring until manual interruption
+        """
+        from time import sleep
+
+        self.cam1.acquire_time.put(_exp)
+        self.cam1.acquire_mode.put("continuous")  # To be checked
+        if _nframes <= 0:
+            # do infinite number of frames....
+            print(f"Start taking images with {_exp} seconds of exposure\n")
             print(f"CTRL + C tp stop...\n")
-            self.cam1.n_images.put(_nframes) # To be updated
+            sleep(0.5)
+        else:
+            self.cam1.acquire_mode.put("multiple") 
+            print(f"Start taking {_nframes} images with {_exp} seconds of exposure\n")
+            print(f"CTRL + C to stop...\n")
+            self.cam1.n_images.put(_nframes)
+            sleep(0.5) # To be updated
+        self.cam1.acquire.put(1)
 
 
 class DexelaDetector(SingleTrigger, AreaDetector):
