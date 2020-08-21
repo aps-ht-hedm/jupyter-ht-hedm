@@ -242,12 +242,14 @@ class TaxiFlyScanDevice(Device):
     In a third (optional) phase, data is collected 
     from hardware and written to a file.
     """
+    import bluesky.plan_stubs as bps
+
     taxi    = Component(EpicsSignal, "taxi", put_complete=True)
     fly     = Component(EpicsSignal, "fly",  put_complete=True)
     
-    reset_fpga = EpicsSignal("6idMZ1:SG:BUFFER-1_IN_Signal.PROC", put_complete=True)
-    pso_state  = EpicsSignal("6idMZ1:SG:AND-1_IN1_Signal",        put_complete=True)  # only accept str as its input
-    
+    reset_fpga = EpicsSignal("6idMZ1:SG:BUFFER-1_IN_Signal.PROC", put_complete=True, name = 'reset_fpga')
+    pso_state  = EpicsSignal("6idMZ1:SG:AND-1_IN1_Signal",        put_complete=True, name = 'pso_state')  # only accept str as its input
+
     def plan(self):
         yield from bps.mv(self.taxi, self.taxi.enum_strs[1])
         yield from bps.mv(self.fly, self.fly.enum_strs[1])
