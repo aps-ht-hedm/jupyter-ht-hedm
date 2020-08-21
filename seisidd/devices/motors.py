@@ -59,6 +59,10 @@ class TomoCamStage(MotorBundle):
         }
 
 
+# NOTE:
+# The NFCamStage should have similar structure of the Tomo stage
+
+
 class StageAero(MotorBundle):
     """
     Motor stacks used for HT-HEDM
