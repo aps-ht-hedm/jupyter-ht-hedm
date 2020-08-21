@@ -146,6 +146,16 @@ class DexelaDetectorCam6IDD(DexelaDetectorCam):
     pass
 
 
+class GEDetector(SingleTrigger, AreaDetector):
+    """Generic detector abstraction for GE"""
+    # e.g.  det = GEDetector("GE2:", name='det')
+    # TODO
+    # we migth need to switch to raw
+    cam1  = ADComponent(CamBase, suffix="cam1:")
+    proc1 = ADComponent(ProcessPlugin, suffix="Proc1:")
+    tiff1 = ADComponent(TIFFPlugin, suffix="TIFF1:")
+
+
 class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
     """PointGrey Grasshopper3 cam plugin customizations (properties)"""
     auto_exposure_on_off    = ADComponent(EpicsSignalWithRBV, "AutoExposureOnOff")
@@ -207,16 +217,22 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
         acuqre 'b' images with exposure of 'a' seconds
         b is default to -1 to continue acquiring until manual interruption
         """
+        from time import sleep
+
         self.cam1.acquire_time.put(_exp)
         self.cam1.acquire_mode.put("continuous")  # To be checked
-        if _nframes < 0:
+        if _nframes <= 0:
             # do infinite number of frames....
             print(f"Start taking images with {_exp} seconds of exposure\n")
             print(f"CTRL + C tp stop...\n")
-        elif _nframes > 0:
+            sleep(0.5)
+        else:
+            self.cam1.acquire_mode.put("multiple") 
             print(f"Start taking {_nframes} images with {_exp} seconds of exposure\n")
-            print(f"CTRL + C tp stop...\n")
-            self.cam1.n_images.put(_nframes) # To be updated
+            print(f"CTRL + C to stop...\n")
+            self.cam1.n_images.put(_nframes)
+            sleep(0.5) # To be updated
+        self.cam1.acquire.put(1)
 
 
 class DexelaDetector(SingleTrigger, AreaDetector):
