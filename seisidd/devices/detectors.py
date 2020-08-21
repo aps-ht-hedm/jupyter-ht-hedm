@@ -17,6 +17,7 @@ from ophyd   import ProcessPlugin
 from ophyd   import TIFFPlugin
 from ophyd   import HDF5Plugin
 from ophyd   import TransformPlugin
+from ophyd   import ImagePlugin
 
 
 class HDF5Plugin6IDD(HDF5Plugin):
@@ -164,11 +165,12 @@ class PointGreyDetectorCam6IDD(PointGreyDetectorCam):
 class PointGreyDetector(SingleTrigger, AreaDetector):
     """PointGrey Detector used at 6-ID-D@APS for tomo and nf-HEDM"""
 
-    cam1  = ADComponent(PointGreyDetectorCam6IDD, suffix="cam1:" )  # camera
-    proc1 = ADComponent(ProcessPlugin,     suffix="Proc1:")  # processing
-    tiff1 = ADComponent(TIFFPlugin,        suffix="TIFF1:")  # tiff output
-    hdf1  = ADComponent(HDF5Plugin6IDD,    suffix="HDF1:" )  # HDF5 output
-    trans1= ADComponent(TransformPlugin,   suffix="Trans1:") # Transform images
+    cam1   = ADComponent(PointGreyDetectorCam6IDD, suffix="cam1:"  )  # camera
+    proc1  = ADComponent(ProcessPlugin,            suffix="Proc1:" )  # processing
+    tiff1  = ADComponent(TIFFPlugin,               suffix="TIFF1:" )  # tiff output
+    hdf1   = ADComponent(HDF5Plugin6IDD,           suffix="HDF1:"  )  # HDF5 output
+    trans1 = ADComponent(TransformPlugin,          suffix="Trans1:")  # Transform images
+    image1 = ADComponent(ImagePlugin,              suffix="image1:")  # Image plugin, rarely used in plan
 
     @property
     def status(self):
