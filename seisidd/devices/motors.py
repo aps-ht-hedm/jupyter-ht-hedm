@@ -17,6 +17,48 @@ from ophyd   import    EpicsSignal
 from ophyd   import    EpicsSignalRO
 
 
+class TomoCamStage(MotorBundle):
+    """
+    Motor stacks used for Tomo Camera
+
+        _____________
+        |   Tomo Y  |
+        =============
+        |   Tomo X  |
+        =============
+        |   Tomo Z  |
+        -------------
+
+    """
+    #   TODO:
+    #   update with acutal set up
+    tomoy          = Component(EpicsMotor, "6idhedm:m48", name='tomoy')  # x motion with kohzu stage
+    tomox          = Component(EpicsMotor, "6idhedm:m45", name='tomox')  # y motion with kohzu stage
+    tomoz          = Component(EpicsMotor, "6idhedm:m46", name='tomoz')  # z motion with kohzu stage
+
+    @property
+    def status(self):
+        """return full pv list and corresponding values"""
+        # TODO:
+        #   once acutal PVs are known, the implementation should go here
+        #   my thought is to list useful PV status for users,
+        #   a full list should be implemented in the Ultima for dev     /JasonZ
+        #   Maybe print StateAero.position_cached ?
+        pass
+
+    def cache_position(self):
+        """cache current motor positions"""
+        #   Add other motors if any (i.e. Kohzu tilt)
+        # TODO:
+        #   We need to consider what to do when cached positions are not the same
+        #   as the physical positions when a motor is manually moved
+        self.position_cached = {
+            "tomoy"            : self.tomoy.position,
+            "tomox"            : self.tomox.position,
+            "tomoz"            : self.tomoz.position,
+        }
+
+
 class StageAero(MotorBundle):
     """
     Motor stacks used for HT-HEDM
