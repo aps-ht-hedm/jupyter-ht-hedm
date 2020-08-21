@@ -54,7 +54,7 @@ class Experiment:
     Experiment class that takes in various setup for different type of scan
 
     Usage:
-    my_experiment = Experiment(Tomography, mode='production')
+    my_experiment = Experiment(Tomography, config, mode='production')
 
     """
 
