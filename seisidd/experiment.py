@@ -258,6 +258,8 @@ class Tomography:
 
     @staticmethod        
     def get_detector(mode):
+        from .devices.motors import TomoCamStage
+        det.motors = TomoCamStage(name='motors')
         """return the 1idPG4 tomo detector for HT-HEDM"""
         det_PV = {
             'debug':       "6iddSIMDET1:",
@@ -491,13 +493,17 @@ class Tomography:
         #   decide what to do with the focus lenses
 
         # calculate slew speed for fly scan
-        # https://github.com/decarlof/tomo2bm/blob/master/flir/libs/aps2bm_lib.py
-        # TODO: considering blue pixels, use 2BM code as ref
         if cfg['tomo']['type'].lower() == 'fly':
-            scan_time = (acquire_time+cfg['tomo']['readout_time'])*n_projections
-            slew_speed = (angs.max() - angs.min())/scan_time
-            cfg['tomo']['slew_speed'] = slew_speed
-
+            # using tested formula adapted from 1ID
+            from seisidd.util import pso_config
+            cfg['tomo']['slew_speed'], cfg['tomo']['scan_delta'], cfg['tomo']['detector_setup_time'] = pso_config(
+                psofly,
+                cfg['tomo']['omega_start'],
+                cfg['tomo']['omega_end'],
+                cfg['tomo']['n_projections'],
+                cfg['tomo']['acquire_time'],
+                camera_make='PointGrey',
+            )        
         # need to make sure that the sample out position is the same for both front and back
         x0, z0 = tomostage.kx.position, tomostage.kz.position
         dfx, dfz = cfg['tomo']['sample_out_position']['kx'], cfg['tomo']['sample_out_position']['kz']
@@ -707,7 +713,7 @@ class Tomography:
         2. disable PSO signal to prevent accidental trigger
         3. disable cam and its plugins in case of emergency stop
         """
-        det = experiment.tomo_det
+        det = experiment.ff_det
         psofly = experiment.fly_control
         
         yield from bps.mv(psofly.reset_fgpa, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
@@ -718,6 +724,15 @@ class Tomography:
 
 class FarField:
     """Far-Field HEDM scan setup for HT-HEDM instrument"""
+    setup_name = 'ff'
+
+    @staticmethod
+    def get_beam(mode):
+        return {
+            'debug':  SimBeam(),
+            'dryrun': Beam(),
+            'production': Beam(),
+        }[mode]
 
     @staticmethod
     def get_stage(mode):
@@ -737,10 +752,443 @@ class FarField:
             'dryrun':      EnsemblePSOFlyDevice("6idhedms1:PSOFly1:", name="psofly"),
             'production':  EnsemblePSOFlyDevice("6idhedms1:PSOFly1:", name="psofly"),
             }[mode]
+    
+    @staticmethod        
+    def get_detector(mode):
+        """return the Varex 4343CT FF detector for HT-HEDM"""
+        from .devices.motors import ffCamStage
+        det.motors = ffCamStage(name='motors')
+
+        det_PV = {
+            'debug':       "6iddSIMDET1:",
+            'dryrun':      "6IDFF:",
+            'production':  "6IDFF:",
+            }[mode]
+        
+        det = {
+            'debug'     :  SimDetector(det_PV, name='det'),
+            'dryrun'    :  Varex4343CT(det_PV, name='det'),
+            'production':  Varex4343CT(det_PV, name='det'),
+            }[mode]
+        
+        # setup HDF5 layout using a hidden EPICS PV
+        # -- enumerator type
+        # -- need to set both write and RBV field
+        # -- we are using dxchange data strcuture instead of Nexus
+        epics.caput(f"{det_PV}cam1:FrameType.ZRST",     "/exchange/data_white_pre")
+        epics.caput(f"{det_PV}cam1:FrameType.ONST",     "/exchange/data")
+        epics.caput(f"{det_PV}cam1:FrameType.TWST",     "/exchange/data_white_post")
+        epics.caput(f"{det_PV}cam1:FrameType.THST",     "/exchange/data_dark")        
+        epics.caput(f"{det_PV}cam1:FrameType_RBV.ZRST", "/exchange/data_white_pre")
+        epics.caput(f"{det_PV}cam1:FrameType_RBV.ONST", "/exchange/data")
+        epics.caput(f"{det_PV}cam1:FrameType_RBV.TWST", "/exchange/data_white_post")
+        epics.caput(f"{det_PV}cam1:FrameType_RBV.THST", "/exchange/data_dark")
+
+        # set the attribute file (det.cam) and the layout file (det.hdf1)
+        _current_fp = str(pathlib.Path(__file__).parent.absolute())
+        #TODO:
+        #need to reconfigure these files
+        _attrib_fp = os.path.join(_current_fp, 'config/$$$$$$$.xml')
+        _layout_fp = os.path.join(_current_fp, 'config/$$$$$$$.xml')
+        det.cam1.nd_attributes_file.put(_attrib_fp)
+        det.hdf1.xml_file_name.put(_layout_fp)
+
+        # -- prime camera
+        # NOTE:
+        # By default, all file plugins have no idea the images dimension&size, therefore we need to pump
+        # in an image to let the file plugins know what to expect
+        # Reset trigger mode
+        det.cam1.trigger_mode.put('Internal')
+        # Configure image pipeline
+        # Raw images go through the following plugins:
+        # 4343CT1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #               ||          ||
+        #                ==> IMAGE1  ======> HDF1
+        det.image1.nd_array_port.put("TRANS1")
+        det.proc1.nd_array_port.put("TRANS1")
+        det.tiff1.nd_array_port.put("PROC1")
+        det.hdf1.nd_array_port.put("PROC1")
+        # ---- get camera ready to keep taking image
+        det.cam1.acquire_time.put(0.1)
+        det.cam1.image_mode.put('Continuous')
+        # Enable plugins
+        det.image1.enable.put(1)
+        det.proc1.enable.put(1)
+        det.trans1.enable.put(1)
+        # ---- get tiff1 primed
+        det.tiff1.auto_increment.put(0)
+        det.tiff1.capture.put(0)
+        det.tiff1.enable.put(1)
+        det.tiff1.file_name.put('prime_my_tiff')
+        det.cam1.acquire.put(1)
+        sleep(0.5) # safe number, for potential delay
+        det.tiff1.enable.put(0)
+        det.tiff1.auto_increment.put(1)
+        # ---- get hdf1 primed
+        det.hdf1.auto_increment.put(0)
+        det.hdf1.capture.put(0)
+        det.hdf1.enable.put(1)
+        det.hdf1.file_name.put('prime_my_hdf')
+        sleep(0.01) # safe to sleep shorter
+        det.cam1.acquire.put(0)
+        det.hdf1.enable.put(0)
+        det.hdf1.auto_increment.put(1)
+        # ---- turn on auto save (supercede by disable, so we are safe)
+        det.tiff1.auto_save.put(1)
+        det.hdf1.auto_save.put(1)
+        # -- realted to proc1
+        det.proc1.filter_callbacks.put(1)   # 0 Every array; 1 Array N only (useful for taking bg)
+        det.proc1.auto_reset_filter.put(1)  # ALWAYS auto reset filter
+        # -- enter stand-by mode
+        det.cam1.image_mode.put('Multiple')
+
+        return det 
+
+    @staticmethod
+    def collect_dark(experiment):
+        # NOTE
+        # 6IDD does not have an actual fast shutter yet, so we are skipping the
+        # fast shutter part for now
+        det = experiment.detector
+
+        # Raw images go through the following plugins:
+        #    4343CT1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #                 ||          ||
+        #                 ==> IMAGE1  ======> HDF1
+
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')  
+        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.trans1.enable, 1) 
+        yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
+        yield from bps.mv(det.proc1.reset_filter, 1)
+        yield from bps.mv(det.proc1.num_filter, cfg_ff['n_frames'])
+        yield from bps.mv(det.cam1.trigger_mode, "Internal")
+        yield from bps.mv(det.cam1.image_mode, "Multiple")
+        yield from bps.mv(det.cam1.num_images, cfg_ff['n_frames']*cfg_ff['n_dark'])
+        yield from bps.trigger_and_read([det])
+
+    @staticmethod
+    def scan(experiment):
+        det = experiment.detector
+        ffstage = experiment.stage
+        mode = experiment.mode
+        shutter = experiment.shutter
+        shutter_suspender = experiment.suspend_shutter
+        cfg = experiment.config
+        
+        # update the cached motor position in the dict in case exp goes wrong
+        _cached_position = ffstage.cache_position()
+
+        #########################
+        ## step 0: preparation ##
+        #########################
+        # Store ff Cam stage XYZ position
+        # cfg['ff']['FF_Y'] = det.motors.ffy.position
+        cfg['ff']['FF_X'] = det.motors.ffx.position
+        cfg['ff']['FF_Z'] = det.motors.ffz.position
+
+        acquire_time   = cfg['ff']['acquire_time']
+        n_dark         = cfg['ff']['n_dark']
+        angs = np.arange(
+            cfg['ff']['omega_start'], 
+            cfg['ff']['omega_end']+cfg['ff']['omega_step']/2,
+            cfg['ff']['omega_step'],
+        )
+        n_projections = len(angs)
+        cfg['ff']['n_projections'] = n_projections
+        cfg['ff']['total_images']  = n_projections + n_dark
+        fp = cfg['output']['filepath']
+        fn = cfg['output']['fileprefix']
+
+        # TODO
+        # consider adding an extra step to:
+        #   Perform energy calibration, set intended attenuation
+        #   set the lenses, change the intended slit size
+        #   prime the control of FS
+        
+        ###################################
+        ## step 1: check beam parameters ##
+        ###################################
+        # set slit sizes
+        # These are the 1-ID-E controls
+        #   epics_put("1ide1:Kohzu_E_upHsize.VAL", ($1), 10) ##
+        #   epics_put("1ide1:Kohzu_E_dnHsize.VAL", (($1)+0.1), 10) ##
+        #   epics_put("1ide1:Kohzu_E_upVsize.VAL", ($2), 10) ## VERT SIZE
+        #   epics_put("1ide1:Kohzu_E_dnVsize.VAL", ($2)+0.1, 10) ##
+        # _beam_h_size    =   cfg['ff']['beamsize_h']
+        # _beam_v_size    =   cfg['ff']['beamsize_v']
+        # yield from bps.mv(beam.s1.h_size, _beam_h_size          )
+        # yield from bps.mv(beam.s1.v_size, _beam_v_size          )
+        # yield from bps.mv(beam.s2.h_size, _beam_h_size + 0.1    )       # add 0.1 following 1ID convention
+        # yield from bps.mv(beam.s2.v_size, _beam_v_size + 0.1    )       # to safe guard the beam?
+
+        if mode in ['dryrun', 'production']:
+            # set attenuation
+            _attenuation = cfg['ff']['attenuation']
+            yield from bps.mv(beam.att._motor, _attenuation)
+            # check energy
+            # need to be clear what we want to do here
+            # _energy_foil = cfg['ff']['energyfoil']
+            # yield from bps.mv(beam.foil._motor, _energy_foil)      # need to complete this part in beamline.py
+            # TODO:
+            #   Instead of setting the beam optics, just check the current setup
+            #   and print it out for user infomation.
+            # current beam size
+            # TODO:
+            # use softIOC to provide shortcut to resize slits
+#             cfg['ff']['beamsize_h']     = beam.s1.h_size
+#             cfg['ff']['beamsize_v']     = beam.s1.v_size
+            # current lenses (proposed...)
+            cfg['ff']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
+            # current attenuation
+            cfg['ff']['attenuation']    = beam.att._motor.get()
+            # check energy? may not be necessary.
+        
+        # TODO:
+        #   set up FS controls
+        #   decide what to do with the focus lenses
+
+        # calculate slew speed for fly scan
+        if cfg['ff']['type'].lower() == 'fly':
+            # using tested formula adapted from 1ID
+            from seisidd.util import pso_config
+            cfg['ff']['slew_speed'], cfg['ff']['scan_delta'], cfg['ff']['detector_setup_time'] = pso_config(
+                psofly,
+                cfg['ff']['omega_start'],
+                cfg['ff']['omega_end'],
+                cfg['ff']['n_projections'],
+                cfg['ff']['acquire_time'],
+                camera_make='Varex',
+                speed_scale=1,
+            )    
+
+        #############################################
+        ## step 2: print out the cfg for user info ##
+        ############################################# 
+        experiment.check(cfg)
+
+        # NOTE: file path cannot be used with bps.mv, leading to a timeout error
+        for me in [det.tiff1, det.hdf1]:
+            me.file_path.put(fp)
+
+        # Reset Aero rotation to ~0 if didn;t clean up after previous scan
+        if ffstage.rot.get() > 300:    
+            ffstage.rot._motor_cal_set.put(1)
+            ffstage.rot.dial_value.put(ffstage.rot.dial_readback.get()-360)
+            ffstage.rot._off_value.put(0)
+            ffstage.rot._motor_cal_set.put(0) 
+        
+        ################################
+        ## step 3: Check light status ##
+        ################################
+        # No need to check light status for FF
+        # while is_light_on():
+        #     print('\a')
+        #     print("Light is on inside the Hutch!!!")
+        #     print("Turn off the light!!!")
+        #     print('\a')
+        #     print('\n')
+        #     sleep(5)
+
+        #########################
+        ## step 4: Actual Scan ##
+        #########################
+
+        @bpp.finalize_decorator(safe_guard(experiment))
+        @bpp.stage_decorator([det])
+        @bpp.run_decorator()
+        def scan_closure():
+            # TODO:
+            # Somewhere we need to check the light status
+            # open shutter for beam
+            if mode.lower() in ['production']:
+                yield from bps.mv(shutter, 'open')
+                yield from bps.install_suspender(shutter_suspender)
+            # config output
+            if mode.lower() in ['dryrun','production']:
+                for me in [det.tiff1, det.hdf1]:
+                    yield from bps.mv(me.file_name, fn)
+                    # yield from bps.mv(me.file_path, fp)
+                    yield from bps.mv(me.file_write_mode, 2)  # 1: capture, 2: stream
+                    yield from bps.mv(me.num_capture, cfg['ff']['total_images'])
+                    yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
+            elif mode.lower() in ['debug']:
+                for me in [det.tiff1, det.hdf1]:
+                    # TODO: file path will lead to time out error in Sim test
+                    # yield from bps.mv(me.file_path, '/data')
+                    yield from bps.mv(me.file_name, fn)
+                    yield from bps.mv(me.file_write_mode, 2) # 1: capture, 2: stream
+                    yield from bps.mv(me.auto_increment, 1)
+                    yield from bps.mv(me.num_capture, cfg['ff']['total_images'])
+                    yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))
+            
+            if cfg['output']['type'] in ['tif', 'tiff']:
+                yield from bps.mv(det.tiff1.enable, 1)
+                yield from bps.mv(det.tiff1.capture, 1)
+                yield from bps.mv(det.hdf1.enable, 0)
+            elif cfg['output']['type'] in ['hdf', 'hdf1', 'hdf5']:
+                yield from bps.mv(det.tiff1.enable, 0)
+                yield from bps.mv(det.hdf1.enable, 1)
+                yield from bps.mv(det.hdf1.capture, 1)
+            else:
+                raise ValueError(f"Unsupported output type {cfg['output']['type']}")
+
+            # setting acquire_time and acquire_period
+            yield from bps.mv(det.cam1.acquire_time, acquire_time)
+                
+            # collect projections
+            yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
+            if cfg['ff']['type'].lower() == 'step':
+                yield from FarField.step_scan(experiment)
+            elif cfg['ff']['type'].lower() == 'fly':
+                yield from FarField.fly_scan(experiment)
+            else:
+                raise ValueError(f"Unsupported scan type: {cfg['ff']['type']}")
+    
+            # collect back dark field
+            yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
+            
+            # TODO: no shutter available for Sim testing
+            if mode.lower() in ['dryrun', 'production']:
+                yield from bps.remove_suspender(shutter_suspender)
+                yield from bps.mv(shutter, "close")
+
+            yield from FarField.collect_dark(experiment)
+    
+        return (yield from scan_closure())
+
+    @staticmethod
+    def step_scan(experiment):
+        det = experiment.detector
+        ffstage = experiment.stage
+        cfg_ff = experiment.config['ff']
+
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #                 ||          ||
+        #                 ==> IMAGE1  ======> HDF1
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
+        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.trans1.enable, 1) 
+        yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
+        yield from bps.mv(det.proc1.reset_filter, 1)
+        yield from bps.mv(det.proc1.num_filter, cfg_ff['n_frames'])
+        yield from bps.mv(det.cam1.num_images, cfg_ff['n_frames'])
+
+        angs = np.arange(
+            cfg_ff['omega_start'], 
+            cfg_ff['omega_end']+cfg_ff['omega_step']/2,
+            cfg_ff['omega_step'],
+        )
+        for ang in angs:
+            yield from bps.checkpoint()
+            yield from bps.mv(ffstage.rot, ang)
+            yield from bps.trigger_and_read([det])
+
+    @staticmethod
+    def fly_scan(experiment):
+        det = experiment.detector
+        psofly = experiment.flycontrol
+        cfg_ff = experiment.config['ff']
+
+        # Raw images go through the following plugins:
+        #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
+        #                 ||          ||
+        #                 ==> IMAGE1  ======> HDF1
+        yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
+        yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
+        yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
+        yield from bps.mv(det.trans1.enable, 1) 
+        yield from bps.mv(det.proc1.enable, 1)
+        yield from bps.mv(det.proc1.enable_filter, 1)
+        yield from bps.mv(det.proc1.filter_type, 'Average')
+        yield from bps.mv(det.proc1.reset_filter, 1)
+        yield from bps.mv(det.proc1.num_filter, cfg_ff['n_frames'])
+        yield from bps.mv(det.cam1.num_images, cfg_ff['n_frames'])
+
+        # we are assuming that the global psofly is available
+        yield from bps.mv(
+            psofly.start,               cfg_ff['omega_start'],
+            psofly.end,                 cfg_ff['omega_end'],
+            psofly.slew_speed,          cfg_ff['slew_speed'],
+            psofly.scan_delta,          cfg_ff['scan_delta'],
+            psofly.detector_setup_time, cfg_ff['detector_setup_time'],
+            )
+        # preparation for PSO signal 
+        yield from bps.mv(psofly.pulse_type, "Gate")
+        yield from bps.mv(psofly.reset_fgpa, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        # taxi
+        yield from bps.mv(stage.rot, cfg_ff['omega_start'])
+        yield from bps.mv(psofly.taxi, "Taxi")     # should be equivalent to: caput(6idhedms1:PSOFly1:taxi, "Taxi")
+                                                   # Aerotech cannot be in "stop" when use flyer
+        yield from bps.mv(
+            det.cam1.num_images, cfg_ff['n_projections'],
+            det.cam1.trigger_mode, "Ext. Standard",
+        )
+        # ready to fly
+        yield from bps.mv(psofly.pso_state,  "1")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        1) , re-enable PSO singal
+        # start the fly scan
+        yield from bps.trigger(det, group='fly')
+        yield from bps.abs_set(psofly.fly, "Fly", group='fly')
+        yield from bps.wait(group='fly')
+        # safe guard against accidental triggering
+        yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+
+    @staticmethod
+    def safe_guard(experiment):
+        """
+        A plan that guarantees
+        1. reset FPGA board
+        2. disable PSO signal to prevent accidental trigger
+        3. disable cam and its plugins in case of emergency stop
+        """
+        det = experiment.ff_det
+        psofly = experiment.fly_control
+        
+        yield from bps.mv(psofly.reset_fgpa, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        
+        # TODO
+        # decided whether it is safe to force reset detector here...
 
 
 class NearField:
     """Near-Fiedl HEDM scan setup for HT-HEDM instrument"""
+    setup_name = 'nf'
+
+    @staticmethod
+    def get_beam(mode):
+        return {
+            'debug':  SimBeam(),
+            'dryrun': Beam(),
+            'production': Beam(),
+        }[mode]
+
+    @staticmethod
+    def get_stage(mode):
+        """return the aerotech stage configuration"""
+        return {
+            "dryrun":     StageAero(name='ffstage'),
+            "production": StageAero(name='ffstage'),
+            "debug":      SimStageAero(name='ffstage'),
+            }[mode]
+    
+    @staticmethod
+    def get_flycontrol(mode):
+        # the mode check should be done at the experiment level
+        from ophyd import sim
+        return {
+            'debug':       sim.flyer1,
+            'dryrun':      EnsemblePSOFlyDevice("6idhedms1:PSOFly1:", name="psofly"),
+            'production':  EnsemblePSOFlyDevice("6idhedms1:PSOFly1:", name="psofly"),
+            }[mode]
 
     pass
 
