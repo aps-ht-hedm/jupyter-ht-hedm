@@ -46,12 +46,14 @@ def pso_config(
     #   1. Different cameras have different readout time, so the gap time must be larger than the readout
     #      time to avoid losing frames.
     #      -- ff-HEDM (GE): 150 ms
+    #      -- ff-HEDM (Varex): 100us   ## !!!need to confirm
     #      -- tomo (PG): 33 ms
     #   2. Aerotech has built-in speed limits, therefore the calcuated slew speed need to be within the
     #      acceptable range (often between 0.001 degree/s ~ 10 degree/s)
     _readout = {
         "PointGrey": 0.033,
         "GE": 0.150,
+        "Varex": 0.0001,
     }[camera_make]
     # calculate the acutal slew speed limit cap
     _slew_speed_max = scan_delta/(_readout+exposure_time) if scan_delta/(_readout+exposure_time) < psofly.slew_speed.high_limit else psofly.slew_speed.high_limit
