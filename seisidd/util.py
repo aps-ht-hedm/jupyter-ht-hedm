@@ -94,3 +94,69 @@ def is_light_on():
         return True
     elif _diode_voltage <0.2:
         return False
+    
+def pso_config(
+        psofly,
+        omega_start: float, 
+        omega_end: float, 
+        n_images: int, 
+        exposure_time: float, 
+        speed_scale: float=0.5,        # 0: slowest speed possible, 1: fastest speed possible, 0~1: linear interpolation              
+        camera_make: str='PointGrey',
+    ):
+    """
+    PSOFly requires careful configuration to synchronize the PSO signal with Aerotech motor rotation.
+    
+    Example:
+    >> pso_config(psofly, omega_start=0, omega_end=5, n_images=5, exposure_time=acquire_time, speed_scale=0.8)
+    >> 6.0152375939849625, 1, 0.06624447237129363
+    """
+    # calculate the scan_delta (in degrees)
+    # -- the rising edge is the beginning of the image acquisition
+    scan_delta = abs(omega_start - omega_end)/n_images
+    if (psofly.scan_delta.low_limit - scan_delta)*(psofly.scan_delta.high_limit-scan_delta) > 0:
+        raise ValueError("Scan Delta out of the permitted range")
+    
+    # use the provided exposure time and general gap time (detector delta) to calculate
+    # the possible slew speed
+    # For Tomo (imaging):
+    # -- the exposure time should be as small as possible since over-long exposure can lead
+    #    to bluring of the image
+    # For Diffraction:
+    # -- maximazing exposure time is recomended as it help covering as much omega range as possible
+    #    to avoid missing peaks
+    # NOTE:
+    #   1. Different cameras have different readout time, so the gap time must be larger than the readout
+    #      time to avoid losing frames.
+    #      -- ff-HEDM (GE): 150 ms
+    #      -- tomo (PG): 33 ms
+    #   2. Aerotech has built-in speed limits, therefore the calcuated slew speed need to be within the 
+    #      acceptable range (often between 0.001 degree/s ~ 10 degree/s)
+    _readout = {
+        "PointGrey": 0.033,
+        "GE": 0.150,
+    }[camera_make]
+    # calculate the acutal slew speed limit cap
+    _slew_speed_max = scan_delta/(_readout+exposure_time) if scan_delta/(_readout+exposure_time) < psofly.slew_speed.high_limit else psofly.slew_speed.high_limit
+    _slew_speed_min = psofly.slew_speed.low_limit
+    # calculate the scaled slew speed
+    slew_speed = speed_scale*(_slew_speed_max - _slew_speed_min) + _slew_speed_min
+#     slew_speed = slew_speed - slew_speed%_slew_speed_min
+    # now calculate the gap time (det setup)
+    detector_setup_time = scan_delta/slew_speed - exposure_time
+    
+    # sening values to PSOFly
+#     psofly.start.put(omega_start)
+#     psofly.end.put(omega_end)
+#     psofly.slew_speed.put(slew_speed)
+#     psofly.scan_delta.put(scan_delta)
+#     psofly.detector_setup_time.put(detector_setup_time)
+    
+#     print(f"omega_start(deg):\t{omega_start}")
+#     print(f"omega_end(deg):\t{omega_end}")
+#     print(f"slew_speed_max(deg/s):\t{_slew_speed_max}")
+#     print(f"slew_speed_min(deg/s):\t{_slew_speed_min}")
+#     print(f"slew_speed(deg/s):\t{slew_speed}")
+#     print(f"detector_setup_time(s):\t{detector_setup_time}")
+#     print(f"total scan time: {abs(omega_start - omega_end)/slew_speed}")
+    return slew_speed, scan_delta, detector_setup_time
