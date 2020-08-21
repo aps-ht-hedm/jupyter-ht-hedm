@@ -42,7 +42,8 @@ class Experiment:
         self.RE.subscribe(BestEffortCallback())
         self._mode   = mode
         self.shutter = Experiment.get_main_shutter(mode)
-        self.suspend_shutter = SuspendFloor(self.shutter.pss_state, 1)  
+        #TODO: Add meta data here, i.e. proposal ID, PI etc.
+        #self.suspend_shutter = SuspendFloor(self.shutter.pss_state, 1)  
     
         # TODO:
         # create fast shutter here
@@ -62,8 +63,8 @@ class Experiment:
         if mode.lower() in ['production']:
             from apstools.devices import ApsMachineParametersDevice
             self._aps    = ApsMachineParametersDevice(name="APS")
-            self.suspend_APS_current = SuspendFloor(self._aps.current, 2, resume_thresh=10)
-            self.RE.install_suspender(self.suspend_APS_current)
+            #self.suspend_APS_current = SuspendFloor(self._aps.current, 2, resume_thresh=10)
+            #self.RE.install_suspender(self.suspend_APS_current)
 
     @staticmethod
     def get_main_shutter(mode):
@@ -87,12 +88,12 @@ class Experiment:
                         yield from abs_set(shutter, "close", wait=True)
                     RE(in_a_plan(shutter_a))
         """
-        from apstools.devices import ApsPssShutter
-        from apstools.devices import SimulatedApsPssShutterWithStatus
+        from .devices.beamline import MainShutter6IDD
+        from apstools.devices  import SimulatedApsPssShutterWithStatus
         return {
             'debug': SimulatedApsPssShutterWithStatus(name="A_shutter"),
             'dryrun': SimulatedApsPssShutterWithStatus(name="A_shutter"),
-            'production' ApsPssShutter("PA:01ID", name='main_shutter'),
+            'production': MainShutter6IDD("6ida1:", name='main_shutter'),
         }[mode]
 
     @staticmethod
@@ -244,6 +245,9 @@ class Tomography(Experiment):
             'production':  PointGreyDetector(det_PV, name='det'),
         }[mode.lower()]
         
+        from .devices.motors import TomoCamStage
+        det.motors = TomoCamStage(name='TomoCamStage')
+        
         # setup HDF5 layout using a hidden EPICS PV
         # -- enumerator type
         # -- need to set both write and RBV field
@@ -279,18 +283,24 @@ class Tomography(Experiment):
         # NOTE:
         # By default, all file plugins have no idea the images dimension&size, therefore we need to pump
         # in an image to let the file plugins know what to expect
+        # Reset trigger mode
+        det.cam1.trigger_mode.put('Internal')
+        det.cam1.frame_rate_on_off.put(1)
         # ---- get camera ready to keep taking image
         det.cam1.acquire_time.put(0.001)
-        det.cam1.acquire_period.put(0.005)
+        det.cam1.acquire_period.put(0.02)
         det.cam1.image_mode.put('Continuous')
+        # Enable plugins
+        det.image1.enable.put(1)
+        det.proc1.enable.put(1)
+        det.trans1.enable.put(1)
         # ---- get tiff1 primed
         det.tiff1.auto_increment.put(0)
         det.tiff1.capture.put(0)
         det.tiff1.enable.put(1)
         det.tiff1.file_name.put('prime_my_tiff')
         det.cam1.acquire.put(1)
-        sleep(0.01)
-        det.cam1.acquire.put(0)
+        sleep(0.5)
         det.tiff1.enable.put(0)
         det.tiff1.auto_increment.put(1)
         # ---- get hdf1 primed
@@ -298,7 +308,6 @@ class Tomography(Experiment):
         det.hdf1.capture.put(0)
         det.hdf1.enable.put(1)
         det.hdf1.file_name.put('prime_my_hdf')
-        det.cam1.acquire.put(1)
         sleep(0.01)
         det.cam1.acquire.put(0)
         det.hdf1.enable.put(0)
@@ -312,6 +321,7 @@ class Tomography(Experiment):
         # -- ?? more to come
         # -- enter stand-by mode
         det.cam1.image_mode.put('Multiple')
+        det.cam1.acquire.put(0)
 
         return det
     
@@ -373,8 +383,8 @@ class Tomography(Experiment):
         det = self.tomo_det
         # Raw images go through the following plugins:
         #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
-        #        ||                 ||
-        #         ==> IMAGE1         ======> HDF1
+        #                 ||          ||
+        #                 ==> IMAGE1  ======> HDF1
 
         yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')  
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
@@ -402,8 +412,8 @@ class Tomography(Experiment):
         # the fields need to be updated for 6-ID-D
         # Raw images go through the following plugins:
         #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
-        #        ||                 ||
-        #         ==> IMAGE1         ======> HDF1
+        #                 ||          ||
+        #                 ==> IMAGE1  ======> HDF1
         yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
         yield from bps.mv(det.tiff1.nd_array_port, 'PROC1') 
@@ -430,14 +440,15 @@ class Tomography(Experiment):
         Collect projections with fly motion
         """
         det = self.tomo_det
+        stage = self.tomo_stage
         psofly = self.fly_control
         
         # TODO:
         #   The fields need to be updated for 6-ID-D
         # Raw images go through the following plugins:
         #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
-        #        ||                 ||
-        #         ==> IMAGE1         ======> HDF1
+        #                 ||          ||
+        #                 ==> IMAGE1  ======> HDF1
         # TODO:
         yield from bps.mv(det.proc1.nd_array_port, 'TRANS1')
         yield from bps.mv(det.hdf1.nd_array_port, 'PROC1')
@@ -452,34 +463,38 @@ class Tomography(Experiment):
 
         # we are assuming that the global psofly is available
         yield from bps.mv(
-            psofly.start,           cfg_tomo['omega_start'],
-            psofly.end,             cfg_tomo['omega_end'],
-            psofly.scan_delta,      abs(cfg_tomo['omega_step']),
-            psofly.slew_speed,      cfg_tomo['slew_speed'],
+            psofly.start,               cfg_tomo['omega_start'],
+            psofly.end,                 cfg_tomo['omega_end'],
+            psofly.slew_speed,          cfg_tomo['slew_speed'],
+            psofly.scan_delta,          cfg_tomo['scan_delta'],
+            psofly.detector_setup_time, cfg_tomo['detector_setup_time'],
         )
+            
         
         # preparation for PSO signal
         # NOTE
         # need to convert to Ophyd signal to get the 
         yield from bps.mv(psofly.pulse_type, "Gate")
-        yield from bps.mv(psofly.reset_fgpa, 1)  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
-        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        yield from bps.mv(psofly.reset_fpga, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
         
         # taxi
+        yield from bps.mv(stage.rot, cfg_tomo['omega_start'])
         yield from bps.mv(psofly.taxi, "Taxi")              # should be equivalent to: caput(6idhedms1:PSOFly1:taxi, "Taxi")
+                                                            # Aerotech cannot be in "stop" when use flyer
         yield from bps.mv(
             det.cam1.num_images, cfg_tomo['n_projections'],
-            det.cam1.trigger_mode, "Overlapped",
+            det.cam1.trigger_mode, "Ext. Standard",
         )
         
         # 
-        yield from bps.mv(psofly.pso_state,  1)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        1) , re-enable PSO singal
+        yield from bps.mv(psofly.pso_state,  "1")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        1) , re-enable PSO singal
         
         # start the fly scan
         yield from bps.trigger(det, group='fly')            # should be equivalent to caput(6idhedms1:PSOFly1:fly, 1)
         yield from bps.abs_set(psofly.fly, "Fly", group='fly')
         yield from bps.wait(group='fly')
-        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
         
     def safe_guard(self):
         """
@@ -491,8 +506,8 @@ class Tomography(Experiment):
         det = self.tomo_det
         psofly = self.fly_control
         
-        yield from bps.mv(psofly.reset_fgpa, 1)  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
-        yield from bps.mv(psofly.pso_state,  0)  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        yield from bps.mv(psofly.reset_fpga, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
+        yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
         
         # TODO
         # decided whether it is safe to force reset detector here...
@@ -507,8 +522,9 @@ class Tomography(Experiment):
         tomostage           = self.tomo_stage
         # TODO: commented for Sim test
         shutter             = self.shutter
-        shutter_suspender   = self.suspend_shutter
+#         shutter_suspender   = self.suspend_shutter
         beam                = self.tomo_beam
+        psofly              = self.fly_control 
         
         # load experiment configurations
         cfg = load_config(cfg) if type(cfg) != dict else cfg
@@ -522,6 +538,9 @@ class Tomography(Experiment):
         #########################
         ## step 0: preparation ##
         #########################
+        cfg['tomo']['TomoY'] = det.motors.tomoy.position
+        cfg['tomo']['TomoX'] = det.motors.tomox.position
+        cfg['tomo']['TomoZ'] = det.motors.tomoz.position
         acquire_time   = cfg['tomo']['acquire_time']
         acquire_period = cfg['tomo']['acquire_period']
         n_white        = cfg['tomo']['n_white']
@@ -561,7 +580,7 @@ class Tomography(Experiment):
         if self._mode.lower() in ['dryrun', 'production']:
             # set attenuation
             _attenuation = cfg['tomo']['attenuation']
-            yield from bps.mv(beam.att._motor, _attenuation)
+            yield from bps.mv(beam.att._motor, _attenuation, timeout = 20)
             # check energy
             # need to be clear what we want to do here
             _energy_foil = cfg['tomo']['energyfoil']
@@ -577,7 +596,7 @@ class Tomography(Experiment):
             # current lenses (proposed...)
             cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
             # current attenuation
-            cfg['tomo']['attenuation']    = beam.att._motor.get()
+            cfg['tomo']['attenuation']    = beam.att._motor.position
             # check energy? may not be necessary.
 
         # TODO:
@@ -588,9 +607,20 @@ class Tomography(Experiment):
         # https://github.com/decarlof/tomo2bm/blob/master/flir/libs/aps2bm_lib.py
         # TODO: considering blue pixels, use 2BM code as ref
         if cfg['tomo']['type'].lower() == 'fly':
-            scan_time = (acquire_time+cfg['tomo']['readout_time'])*n_projections
-            slew_speed = (angs.max() - angs.min())/scan_time
-            cfg['tomo']['slew_speed'] = slew_speed
+            # using tested formula adapted from 1ID
+            from seisidd.util import pso_config
+            cfg['tomo']['slew_speed'], cfg['tomo']['scan_delta'], cfg['tomo']['detector_setup_time'] = pso_config(
+                psofly,
+                cfg['tomo']['omega_start'],
+                cfg['tomo']['omega_end'],
+                cfg['tomo']['n_projections'],
+                cfg['tomo']['acquire_time'],
+                camera_make='PointGrey',
+            )        
+#             cfg['tomo']['slew_speed'], cfg['tomo']['slew_speed'], 
+#             scan_time = (acquire_time+cfg['tomo']['readout_time'])*n_projections
+#             slew_speed = (angs.max() - angs.min())/scan_time
+#             cfg['tomo']['slew_speed'] = slew_speed
         
         # need to make sure that the sample out position is the same for both front and back
         x0, z0 = tomostage.kx.position, tomostage.kz.position
@@ -617,21 +647,27 @@ class Tomography(Experiment):
         # NOTE: file path cannot be used with bps.mv, leading to a timeout error
         for me in [det.tiff1, det.hdf1]:
             me.file_path.put(fp)
+        if tomostage.rot.get() > 300:    
+            tomostage.rot._motor_cal_set.put(1)
+            #_current_rot_pos = tomostage.rot._dialreadback.get()
+            tomostage.rot.dial_value.put(tomostage.rot.dial_readback.get()-360)
+            tomostage.rot._off_value.put(0)
+            tomostage.rot._motor_cal_set.put(0)    
         
         # TODO:
         # need a clean up detector to
         # 1. reset fpga close the fast shutter,  fast shutter is tied to FPGA
         # 2. disalbe pso signal
-        @bpp.finalize_decorator()
+        @bpp.finalize_decorator(self.safe_guard)
         @bpp.stage_decorator([det])
         @bpp.run_decorator()
         def scan_closure():
             # TODO:
             #   Somewhere we need to check the light status
             # open shutter for beam
-            if self._mode.lower() in ['production']:
-                yield from bps.mv(shutter, 'open')
-                yield from bps.install_suspender(shutter_suspender)
+            #if self._mode.lower() in ['production']:
+                #yield from bps.mv(shutter, 'open')
+                #yield from bps.install_suspender(shutter_suspender)
             # config output
             if self._mode.lower() in ['dryrun','production']:
                 for me in [det.tiff1, det.hdf1]:
@@ -687,9 +723,9 @@ class Tomography(Experiment):
             yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
             
             # TODO: no shutter available for Sim testing
-            if self._mode.lower() in ['dryrun', 'production']:
-                yield from bps.remove_suspender(shutter_suspender)
-                yield from bps.mv(shutter, "close")
+            #if self._mode.lower() in ['dryrun', 'production']:
+                #yield from bps.remove_suspender(shutter_suspender)
+                #yield from bps.mv(shutter, "close")
 
             yield from self.collect_dark_field(cfg['tomo'])
     
@@ -887,6 +923,12 @@ class NearField(Experiment):
             # TODO: Need to make sure this is correct
             # change to PG4 for testing
             det = PointGreyDetector("1idPG4:", name='det')
+            
+            #TODO:
+            # Need to get NF motions here
+#             from motors import TomoCamStage
+#             det.motors = TomoCamStage()
+            
             # TODO:
             # Change the motor PV to the actual motor that moves the detector along z-axis
             from ophyd import EpicsMotor
@@ -1085,9 +1127,7 @@ class NearField(Experiment):
         ##  Function for NF Single Layer Scan  ##
         #########################################
         self.check(cfg)    
-        
-        @bpp.stage_decorator([det])         
-        @bpp.run_decorator()
+
         def scan_singlelayer(self, cfg_nf, _layer_number):
             # TODO:
             #   Somewhere we need to check the light status, or, add a suspender?
@@ -1132,21 +1172,26 @@ class NearField(Experiment):
         n_layers   = cfg['nf']['volume']['n_layers']
         ky_start   = cfg['nf']['volume']['ky_start']
         ky_step    = cfg['nf']['volume']['ky_step']
-        if ky_step == 0:
-            # To repeat the current layer for n_layer times
-            # !!! The layer/file number will still increase for this same layer
-            _scan_positions = np.arange(1, n_layers+1, 1)
-            for _layer_number_count in _scan_positions:
-                yield from bps.mv(stage.ky, ky_start)
-                yield from scan_singlelayer(self, cfg['nf'], _layer_number_count)     ### NOT sure if this works!!!
-        # For regular scans
-        elif ky_step != 0:
-            _layer_number_count  = 1
-            _scan_positions = np.arange(ky_start, ky_start+(n_layers-0.5)*ky_step, ky_step)
-            for _current_scan_ky in _scan_positions:
-                yield from bps.mv(stage.ky, _current_scan_ky)
-                yield from scan_singlelayer(self, cfg['nf'], _layer_number_count)     ### NOT sure if this works!!!
-                _layer_number_count += 1
+        
+        @bpp.stage_decorator([det])         
+        @bpp.run_decorator()
+        def scan_closure():
+            if ky_step == 0:
+                # To repeat the current layer for n_layer times
+                # !!! The layer/file number will still increase for this same layer
+                _scan_positions = np.arange(1, n_layers+1, 1)
+                for _layer_number_count in _scan_positions:
+                    yield from bps.mv(stage.ky, ky_start)
+                    yield from scan_singlelayer(self, cfg['nf'], _layer_number_count)     ### NOT sure if this works!!!
+            # For regular scans
+            elif ky_step > 0:
+                _layer_number_count  = 1
+                _scan_positions = np.arange(ky_start, ky_start+(n_layers-0.5)*ky_step, ky_step)
+                for _current_scan_ky in _scan_positions:
+                    yield from bps.mv(stage.ky, _current_scan_ky)
+                    yield from scan_singlelayer(self, cfg['nf'], _layer_number_count)     ### NOT sure if this works!!!
+                    _layer_number_count += 1
+        return scan_closure()
 
     #   summarize_plan with config yml file
     def dryrun(self, scan_config):
