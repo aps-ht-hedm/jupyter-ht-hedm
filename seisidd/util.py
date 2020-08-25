@@ -18,7 +18,7 @@ def pso_config(
         omega_end: float,
         n_images: int,
         exposure_time: float,
-        speed_scale: float=0.5,        # 0: slowest speed possible, 1: fastest speed possible, 0~1: linear interpolation
+        speed_scale: float= 1.0,        # 0: slowest speed possible, 1: fastest speed possible, 0~1: linear interpolation
         camera_make: str='PointGrey',
     ):
     """
@@ -53,7 +53,7 @@ def pso_config(
     _readout = {
         "PointGrey": 0.033,
         "GE": 0.150,
-        "Varex": 0.0001,
+        "Varex": 0.070,
     }[camera_make]
     # calculate the acutal slew speed limit cap
     _slew_speed_max = scan_delta/(_readout+exposure_time) if scan_delta/(_readout+exposure_time) < psofly.slew_speed.high_limit else psofly.slew_speed.high_limit
