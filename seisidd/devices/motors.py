@@ -63,7 +63,7 @@ class TomoCamStage(MotorBundle):
 # The NFCamStage should have similar structure of the Tomo stage
 
 
-class TomoCamStage(MotorBundle):
+class FFCamStage(MotorBundle):
     """
     Motor stacks used for Tomo Camera
 
