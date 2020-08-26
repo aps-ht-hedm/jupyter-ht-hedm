@@ -221,16 +221,16 @@ class Varex4343CT(SingleTrigger, AreaDetector):
         from time import sleep
 
         self.cam1.acquire_time.put(_exp)
-        self.cam1.image_mode.put("continuous")  # To be checked
+        self.cam1.image_mode.put("Continuous")  # To be checked
         if _nframes <= 0:
             # do infinite number of frames....
             print(f"Start taking images with {_exp} seconds of exposure\n")
-            print(f"CTRL + C tp stop...\n")
+            print(f"Press \"Stop\" on 6IDFF:cam1 to stop acquisition.\n")
             sleep(0.5)
         else:
-            self.cam1.image_mode.put("multiple") 
+            self.cam1.image_mode.put("Multiple") 
             print(f"Start taking {_nframes} images with {_exp} seconds of exposure\n")
-            print(f"CTRL + C to stop...\n")
+            print(f"Press \"Stop\" on 6IDFF:cam1 to stop acquisition.\n")
             self.cam1.num_images.put(_nframes)
             sleep(0.5) # To be updated
         self.cam1.acquire.put(1)
@@ -290,25 +290,25 @@ class PointGreyDetector(SingleTrigger, AreaDetector):
     #  Additional PVs can be wrapped as property for interactive use when the 
     #  acutal PVs are known.
 
-    def cont_acq(self, _exp, _nframes = -1):
+    def cont_acq(self, _exp, _period, _nframes = -1):
         """
-        cont_acq(a, b)
-        acuqre 'b' images with exposure of 'a' seconds
+        cont_acq(a, b, c)
+        acuqre 'c' images with exposure of 'a' seconds every 'b' seconds
         b is default to -1 to continue acquiring until manual interruption
         """
         from time import sleep
-
         self.cam1.acquire_time.put(_exp)
-        self.cam1.acquire_mode.put("continuous")  # To be checked
+        self.cam1.acquire_period.put(_period)
+        self.cam1.image_mode.put("Continuous")  # To be checked
         if _nframes <= 0:
             # do infinite number of frames....
             print(f"Start taking images with {_exp} seconds of exposure\n")
-            print(f"CTRL + C tp stop...\n")
+            print(f"Press \"Stop\" on 1idPG4:cam1 to stop acquisition.\n")
             sleep(0.5)
         else:
-            self.cam1.acquire_mode.put("multiple") 
+            self.cam1.image_mode.put("Multiple") 
             print(f"Start taking {_nframes} images with {_exp} seconds of exposure\n")
-            print(f"CTRL + C to stop...\n")
+            print(f"Press \"Stop\" on 1idPG4:cam1 to stop acquisition.\n")
             self.cam1.n_images.put(_nframes)
             sleep(0.5) # To be updated
         self.cam1.acquire.put(1)
