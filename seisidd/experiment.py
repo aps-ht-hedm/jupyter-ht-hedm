@@ -258,8 +258,6 @@ class Tomography:
 
     @staticmethod        
     def get_detector(mode):
-        from .devices.motors import TomoCamStage
-        det.motors = TomoCamStage(name='motors')
         """return the 1idPG4 tomo detector for HT-HEDM"""
         det_PV = {
             'debug':       "6iddSIMDET1:",
@@ -272,6 +270,9 @@ class Tomography:
             'dryrun'    :  PointGreyDetector(det_PV, name='det'),
             'production':  PointGreyDetector(det_PV, name='det'),
             }[mode]
+        
+        from .devices.motors import TomoCamStage
+        det.motors = TomoCamStage(name='motors')
         
         # setup HDF5 layout using a hidden EPICS PV
         # -- enumerator type
@@ -350,7 +351,6 @@ class Tomography:
     def collect_white(experiment, atfront=True):
         det = experiment.detector
         tomostage = experiment.stage
-
         cfg_tomo = experiment.config['tomo']
 
         # move sample out of the way
@@ -389,6 +389,7 @@ class Tomography:
         # 6IDD does not have an actual fast shutter yet, so we are skipping the
         # fast shutter part for now
         det = experiment.detector
+        cfg_tomo = experiment.config['tomo']
 
         # Raw images go through the following plugins:
         #       PG1 ==> TRANS1 ==> PROC1 ==> TIFF1
@@ -487,7 +488,7 @@ class Tomography:
             # current lenses (proposed...)
             cfg['tomo']['focus_beam']     = beam.l1.l1y == 10  # to see if focusing is used
             # current attenuation
-            cfg['tomo']['attenuation']    = beam.att._motor.get()
+            cfg['tomo']['attenuation_actual']    = beam.att._motor.position
             # check energy? may not be necessary.
         
         # TODO:
@@ -535,10 +536,10 @@ class Tomography:
 
         # Reset Aero rotation to ~0 if didn;t clean up after previous scan
         if tomostage.rot.position > 300:    
-            tomostage.rot._motor_cal_set.put(1)
-            tomostage.rot.dial_value.put(tomostage.rot.dial_readback.get()-360)
-            tomostage.rot._off_value.put(0)
-            tomostage.rot._motor_cal_set.put(0) 
+            tomostage.rot.set_use_switch.put(1)
+            tomostage.rot.dial_setpoint.put(tomostage.rot.dial_readback.get()-360)
+            tomostage.rot.user_offset.put(0)
+            tomostage.rot.set_use_switch.put(0) 
         
         ################################
         ## step 3: Check light status ##
@@ -546,6 +547,7 @@ class Tomography:
         while is_light_on():
             print('\a')
             print("Light is on inside the Hutch!!!")
+            print('\a')
             print("Turn off the light!!!")
             print('\a')
             print('\n')
@@ -555,7 +557,7 @@ class Tomography:
         ## step 4: Actual Scan ##
         #########################
 
-        @bpp.finalize_decorator(Tomography.safe_guard(experiment))
+        # @bpp.finalize_decorator(Tomography.safe_guard(experiment))
         @bpp.stage_decorator([det])
         @bpp.run_decorator()
         def scan_closure():
@@ -661,6 +663,7 @@ class Tomography:
     @staticmethod
     def fly_scan(experiment):
         det = experiment.detector
+        tomostage = experiment.stage
         psofly = experiment.flycontrol
         cfg_tomo = experiment.config['tomo']
 
@@ -676,8 +679,8 @@ class Tomography:
         yield from bps.mv(det.proc1.enable_filter, 1)
         yield from bps.mv(det.proc1.filter_type, 'Average')
         yield from bps.mv(det.proc1.reset_filter, 1)
-        yield from bps.mv(det.proc1.num_filter, cfg_tomo['n_frames'])
-        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_frames'])
+        yield from bps.mv(det.proc1.num_filter, 1)
+        yield from bps.mv(det.cam1.num_images, cfg_tomo['n_projections'])
 
         # we are assuming that the global psofly is available
         yield from bps.mv(
@@ -692,7 +695,7 @@ class Tomography:
         yield from bps.mv(psofly.reset_fpga, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
         yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
         # taxi
-        yield from bps.mv(stage.rot, cfg_tomo['omega_start'])
+        yield from bps.mv(tomostage.rot, cfg_tomo['omega_start'])
         yield from bps.mv(psofly.taxi, "Taxi")     # should be equivalent to: caput(6idhedms1:PSOFly1:taxi, "Taxi")
                                                    # Aerotech cannot be in "stop" when use flyer
         yield from bps.mv(
@@ -990,10 +993,10 @@ class FarField:
 
         # Reset Aero rotation to ~0 if didn;t clean up after previous scan
         if ffstage.rot.position > 300:    
-            ffstage.rot._motor_cal_set.put(1)
-            ffstage.rot.dial_value.put(ffstage.rot.dial_readback.get()-360)
-            ffstage.rot._off_value.put(0)
-            ffstage.rot._motor_cal_set.put(0) 
+            ffstage.rot.set_use_switch.put(1)
+            ffstage.rot.dial_setpoint.put(tomostage.rot.dial_readback.get()-360)
+            ffstage.rot.user_offset.put(0)
+            ffstage.rot.set_use_switch.put(0) 
         
         ################################
         ## step 3: Check light status ##
