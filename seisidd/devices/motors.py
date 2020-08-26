@@ -105,6 +105,10 @@ class FFCamStage(MotorBundle):
         }
 
 
+class AeroEpicsMotor(EpicsMotor):
+    dial_readback = Component(EpicsSignalRO, '.DRBV', kind='hinted',auto_monitor=True)
+    dial_setpoint = Component(EpicsSignal, '.DVAL', limits=True)
+
 class StageAero(MotorBundle):
     """
     Motor stacks used for HT-HEDM
@@ -129,7 +133,7 @@ class StageAero(MotorBundle):
     kx_tilt     = Component(EpicsMotor, "6idhedm:m43", name='kx_tilt')   # kohzu tilt motion along x
     kz_tilt     = Component(EpicsMotor, "6idhedm:m44", name='kz_tilt')   # kohzu tilt motion along z
 
-    rot         = Component(EpicsMotor, "6idhedms1:m1",  name='rot_y'  )    # rotation with aero stage
+    rot         = Component(AeroEpicsMotor, "6idhedms1:m1",  name='rot_y'  )    # rotation with aero stage
 
     x_base      = Component(EpicsMotor, "6idhedm:m37",  name='x_trans')    # x motion below aero stage
     tiltx_base  = Component(EpicsMotor, "6idhedm:m38",  name='tiltx_base')    # y motion below aero stage
