@@ -109,6 +109,18 @@ class Experiment:
             self.suspend_APS_current = SuspendFloor(self._aps.current, 2, resume_thresh=10)
             self.RE.install_suspender(self.suspend_APS_current)
 
+        # async monitor of IC readings during experiment
+        from ophyd import EpicsSignalRO
+        self._IonChambers = [EpicsSignalRO(f"6idx{device_num+1}:TetrAMM:Current{channel_num+1}")  
+                                for device_num in range(2)  
+                                for channel_num in range(4)
+                            ]
+        self._supplementData = bpp.SupplementalData(
+                baseline=[self.stage, self.detector],
+                monitors=self._IonChambers,
+            )
+        self.RE.preprocessors.append(self._supplementData)
+
     @property
     def config(self):
         return self._config
