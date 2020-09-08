@@ -12,13 +12,13 @@ from IPython              import get_ipython
 from IPython.core.display import display, HTML
 
 
-def pso_config(
+def tomo_pso_config(
         psofly,
         omega_start: float,
         omega_end: float,
-        n_images: int,
+        n_images: int,    # need to update for tomo and FF
         exposure_time: float,
-        speed_scale: float= 1.0,        # 0: slowest speed possible, 1: fastest speed possible, 0~1: linear interpolation
+        speed_scale: float= 0.9,        # 0: slowest speed possible, 1: fastest speed possible, 0~1: linear interpolation
         camera_make: str='PointGrey',
     ):
     """
@@ -30,7 +30,65 @@ def pso_config(
     """
     # calculate the scan_delta (in degrees)
     # -- the rising edge is the beginning of the image acquisition
-    scan_delta = abs(omega_start - omega_end)/n_images
+    scan_delta = abs(omega_start - omega_end)/n_images # in FF scan_delta = omega_step
+  
+    if (psofly.scan_delta.low_limit - scan_delta)*(psofly.scan_delta.high_limit-scan_delta) > 0:
+        raise ValueError("Scan Delta out of the permitted range")
+
+    # use the provided exposure time and general gap time (detector delta) to calculate
+    # the possible slew speed
+    # For Tomo (imaging):
+    # -- the exposure time should be as small as possible since over-long exposure can lead
+    #    to bluring of the image
+    # For Diffraction:
+    # -- maximazing exposure time is recomended as it help covering as much omega range as possible
+    #    to avoid missing peaks
+    # NOTE:
+    #   1. Different cameras have different readout time, so the gap time must be larger than the readout
+    #      time to avoid losing frames.
+    #      -- ff-HEDM (GE): 150 ms
+    #      -- ff-HEDM (Varex): 100us   ## !!!need to confirm
+    #      -- tomo (PG): 33 ms
+    #   2. Aerotech has built-in speed limits, therefore the calcuated slew speed need to be within the
+    #      acceptable range (often between 0.001 degree/s ~ 10 degree/s)
+    _readout = {
+        "PointGrey": 0.033,
+        "GE": 0.150,
+        "Varex": 0.070,
+    }[camera_make]
+    # calculate the acutal slew speed limit cap
+    _slew_speed_max = scan_delta/(_readout+exposure_time) if scan_delta/(_readout+exposure_time) < psofly.slew_speed.high_limit else psofly.slew_speed.high_limit
+    _slew_speed_min = psofly.slew_speed.low_limit
+    # slew speed is defined as a linear scaling bewteen _slew_speed_min and _slew_speed_max
+    slew_speed = speed_scale*(_slew_speed_max - _slew_speed_min) + _slew_speed_min
+    # now calculate the gap time (det setup)
+    detector_setup_time = scan_delta/slew_speed - exposure_time
+
+    return slew_speed, scan_delta, detector_setup_time
+
+
+def ff_pso_config(
+        psofly,
+        omega_start: float,
+        omega_end: float,
+        omega_step: float,    # need to update for tomo and FF
+        exposure_time: float,
+        speed_scale: float= 0.98,        # 0: slowest speed possible, 1: fastest speed possible, 0~1: linear interpolation
+        camera_make: str='Varex',
+    ):
+    """
+    PSOFly requires careful configuration to synchronize the PSO signal with Aerotech motor rotation.
+
+    Example:
+    >> pso_config(psofly, omega_start=0, omega_end=5, n_images=5, exposure_time=acquire_time, speed_scale=0.8)
+    >> 6.0152375939849625, 1, 0.06624447237129363
+    """
+    # calculate the scan_delta (in degrees)
+    # -- the rising edge is the beginning of the image acquisition
+    # scan_delta = abs(omega_start - omega_end)/n_images # in FF scan_delta = omega_step
+    # in FF scan_delta is a set value equal to omega_step
+    scan_delta = omega_step
+  
     if (psofly.scan_delta.low_limit - scan_delta)*(psofly.scan_delta.high_limit-scan_delta) > 0:
         raise ValueError("Scan Delta out of the permitted range")
 
