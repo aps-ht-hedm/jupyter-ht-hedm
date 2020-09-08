@@ -295,6 +295,12 @@ class TaxiFlyScanDevice(Device):
     
     reset_fpga = EpicsSignal("6idMZ1:SG:BUFFER-1_IN_Signal.PROC", put_complete=True, name = 'reset_fpga')
     pso_state  = EpicsSignal("6idMZ1:SG:AND-1_IN1_Signal",        put_complete=True, name = 'pso_state')  # only accept str as its input
+    
+    fi1_signal = EpicsSignal("6idMZ1:SG:FI1_Signal", put_complete=True, name = 'fi1_signal')
+    fi2_signal = EpicsSignal("6idMZ1:SG:FI2_Signal", put_complete=True, name = 'fi2_signal')
+    fi3_signal = EpicsSignal("6idMZ1:SG:FI3_Signal", put_complete=True, name = 'fi3_signal')
+    fi4_signal = EpicsSignal("6idMZ1:SG:FI4_Signal", put_complete=True, name = 'fi4_signal')
+    fi5_signal = EpicsSignal("6idMZ1:SG:FI5_Signal", put_complete=True, name = 'fi5_signal')
 
     def plan(self):
         yield from bps.mv(self.taxi, self.taxi.enum_strs[1])
