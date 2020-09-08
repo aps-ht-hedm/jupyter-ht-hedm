@@ -85,20 +85,20 @@ class Experiment:
 
         # setup the RunEngine
         self.RE = bluesky.RunEngine({})
-        try:
-            # NOTE
-            # The MongoDB configuration file should be
-            #    $HOME/.config/databroker/mongodb_config.yml
-            # Check the MongoDB container running state if RE cannot locate
-            # the service (most likely a host name or port number error)
-            self.db = databroker.Broker.named("mongodb_config")
-            self.RE.subscribe(self.db.insert)
-        except:
-            print("MongoDB metadata recording stream is not configured properly")
-            print("Please double check the MongoBD server and try a manual setup")
-        finally:
-            print("It is recommended to have only one RunEngine per experiment/notebook")
-            print("You can expose the RunEngine to global scope via: RE=$ExperimentName.RE")
+#         try:
+#             # NOTE
+#             # The MongoDB configuration file should be
+#             #    $HOME/.config/databroker/mongodb_config.yml
+#             # Check the MongoDB container running state if RE cannot locate
+#             # the service (most likely a host name or port number error)
+#             self.db = databroker.Broker.named("mongodb_config")
+#             self.RE.subscribe(self.db.insert)
+#         except:
+#             print("MongoDB metadata recording stream is not configured properly")
+#             print("Please double check the MongoBD server and try a manual setup")
+#         finally:
+#             print("It is recommended to have only one RunEngine per experiment/notebook")
+#             print("You can expose the RunEngine to global scope via: RE=$ExperimentName.RE")
 
         # get all beamline level control
         self.shutter = Experiment.get_main_shutter(mode)
@@ -324,7 +324,7 @@ class Tomography:
         det.tiff1.enable.put(1)
         det.tiff1.file_name.put('prime_my_tiff')
         det.cam1.acquire.put(1)
-        sleep(0.5) # safe number, for potential delay
+        sleep(1.5) # safe number, for potential delay
         det.tiff1.enable.put(0)
         det.tiff1.auto_increment.put(1)
         # ---- get hdf1 primed
@@ -332,7 +332,7 @@ class Tomography:
         det.hdf1.capture.put(0)
         det.hdf1.enable.put(1)
         det.hdf1.file_name.put('prime_my_hdf')
-        sleep(0.01) # safe to sleep shorter
+        sleep(0.5) # safe to sleep shorter
         det.cam1.acquire.put(0)
         det.hdf1.enable.put(0)
         det.hdf1.auto_increment.put(1)
@@ -498,12 +498,12 @@ class Tomography:
         # calculate slew speed for fly scan
         if cfg['tomo']['type'].lower() == 'fly':
             # using tested formula adapted from 1ID
-            from seisidd.util import pso_config
-            cfg['tomo']['slew_speed'], cfg['tomo']['scan_delta'], cfg['tomo']['detector_setup_time'] = pso_config(
+            from seisidd.util import tomo_pso_config
+            cfg['tomo']['slew_speed'], cfg['tomo']['scan_delta'], cfg['tomo']['detector_setup_time'] = tomo_pso_config(
                 psofly,
                 cfg['tomo']['omega_start'],
                 cfg['tomo']['omega_end'],
-                cfg['tomo']['n_projections'],
+                cfg['tomo']['omega_step'],
                 cfg['tomo']['acquire_time'],
                 camera_make='PointGrey',
                 speed_scale=0.9,    # scale down from 1 to add padding.
@@ -694,6 +694,9 @@ class Tomography:
         yield from bps.mv(psofly.pulse_type, "Gate")
         yield from bps.mv(psofly.reset_fpga, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
         yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        yield from bps.mv(psofly.fi2_signal, "pls") # program in FPGA to take TomoExp for the frame counter
+        yield from bps.mv(psofly.fi3_signal, "")  # clear other signal inputs from NF and FF
+        yield from bps.mv(psofly.fi4_signal, "")
         # taxi
         yield from bps.mv(tomostage.rot, cfg_tomo['omega_start'])
         yield from bps.mv(psofly.taxi, "Taxi")     # should be equivalent to: caput(6idhedms1:PSOFly1:taxi, "Taxi")
@@ -971,12 +974,12 @@ class FarField:
         # calculate slew speed for fly scan
         if cfg['ff']['type'].lower() == 'fly':
             # using tested formula adapted from 1ID
-            from seisidd.util import pso_config
-            cfg['ff']['slew_speed'], cfg['ff']['scan_delta'], cfg['ff']['detector_setup_time'] = pso_config(
+            from seisidd.util import ff_pso_config
+            cfg['ff']['slew_speed'], cfg['ff']['scan_delta'], cfg['ff']['detector_setup_time'] = ff_pso_config(
                 psofly,
                 cfg['ff']['omega_start'],
                 cfg['ff']['omega_end'],
-                cfg['ff']['n_projections'],
+                cfg['ff']['omega_step'],
                 cfg['ff']['acquire_time'],
                 camera_make='Varex',
                 speed_scale=1,
@@ -987,14 +990,13 @@ class FarField:
         ############################################# 
         experiment.check(cfg)
 
-        # NOTE: file path cannot be used with bps.mv, leading to a timeout error
         for me in [det.tiff1, det.hdf1]:
             me.file_path.put(fp)
 
         # Reset Aero rotation to ~0 if didn;t clean up after previous scan
         if ffstage.rot.position > 300:    
             ffstage.rot.set_use_switch.put(1)
-            ffstage.rot.dial_setpoint.put(tomostage.rot.dial_readback.get()-360)
+            ffstage.rot.dial_setpoint.put(ffstage.rot.dial_readback.get()-360)
             ffstage.rot.user_offset.put(0)
             ffstage.rot.set_use_switch.put(0) 
         
@@ -1127,6 +1129,9 @@ class FarField:
         yield from bps.mv(psofly.pulse_type, "Gate")
         yield from bps.mv(psofly.reset_fpga, "1")  # caput(6idMZ1:SG:BUFFER-1_IN_Signal.PROC, 1), reest FPGA circutry 
         yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
+        yield from bps.mv(psofly.fi2_signal, "") # program in FPGA to take TomoExp for the frame counter
+        yield from bps.mv(psofly.fi3_signal, "")  # clear other signal inputs from NF and FF
+        yield from bps.mv(psofly.fi4_signal, "pls")
         # taxi
         yield from bps.mv(ffstage.rot, cfg_ff['omega_start'])
         yield from bps.mv(psofly.taxi, "Taxi")     # should be equivalent to: caput(6idhedms1:PSOFly1:taxi, "Taxi")
