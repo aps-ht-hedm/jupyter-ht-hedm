@@ -10,7 +10,7 @@ NOTE:
 """
 
 from ophyd   import AreaDetector
-from ophyd   import SingleTrigger, EpicsSignalRO, EpicsSignalWithRBV
+from ophyd   import EpicsSignal, SingleTrigger, EpicsSignalRO, EpicsSignalWithRBV
 from ophyd   import ADComponent
 from ophyd   import CamBase 
 from ophyd   import PointGreyDetectorCam  ## no DexelaDetectorCam in Ophyd
@@ -157,7 +157,11 @@ class GEDetector(SingleTrigger, AreaDetector):
     proc1 = ADComponent(ProcessPlugin, suffix="Proc1:")
     tiff1 = ADComponent(TIFFPlugin, suffix="TIFF1:")
 
-
+class VarexTransformPlugin(TransformPlugin):
+    """Add Types handle"""
+    transformation_type = ADComponent(EpicsSignal, "Type")
+    
+    
 class Varex4343CTCAM6IDD(PerkinElmerDetectorCam):
     """Varex 4343CT cam plugin customizations based on PerkinElmerDetectorCam(properties)"""
     #TODO:
@@ -180,7 +184,7 @@ class Varex4343CT(SingleTrigger, AreaDetector):
     proc1  = ADComponent(ProcessPlugin,            suffix="Proc1:" )  # processing
     tiff1  = ADComponent(TIFFPlugin,               suffix="TIFF1:" )  # tiff output
     hdf1   = ADComponent(HDF5Plugin6IDD,           suffix="HDF1:"  )  # HDF5 output
-    trans1 = ADComponent(TransformPlugin,          suffix="Trans1:")  # Transform images
+    trans1 = ADComponent(VarexTransformPlugin,     suffix="Trans1:")  # Transform images
     image1 = ADComponent(ImagePlugin,              suffix="image1:")  # Image plugin, rarely used in plan
 
     @property
