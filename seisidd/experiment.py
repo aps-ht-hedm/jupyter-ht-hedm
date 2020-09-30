@@ -102,7 +102,8 @@ class Experiment:
 
         # get all beamline level control
         self.shutter = Experiment.get_main_shutter(mode)
-        self.suspend_shutter = SuspendFloor(self.shutter.pss_state, 1)
+        # need something like a pss_state for the suspender
+#         self.suspend_shutter = SuspendFloor(self.shutter.state, 1)
         if self._mode == 'production':
             from apstools.devices import ApsMachineParametersDevice
             self._aps = ApsMachineParametersDevice(name="APS")
@@ -165,7 +166,7 @@ class Experiment:
         return {
             'debug': SimulatedApsPssShutterWithStatus(name="A_shutter"),
             'dryrun': SimulatedApsPssShutterWithStatus(name="A_shutter"),
-            'production': MainShutter6IDD("6ida1:", name='main_shutter'),
+            'production': MainShutter6IDD("6ida1:", name='shutter'),
         }[mode]
 
     @staticmethod
@@ -311,7 +312,7 @@ class Tomography:
         det.cam1.trigger_mode.put('Internal')
         det.cam1.frame_rate_on_off.put(1)
         # ---- get camera ready to keep taking image
-        det.cam1.acquire_time.put(0.001)
+        det.cam1.acquire_time.put(0.01)
         det.cam1.acquire_period.put(0.02)
         det.cam1.image_mode.put('Continuous')
         # Enable plugins
@@ -417,7 +418,8 @@ class Tomography:
         tomostage = experiment.stage
         mode = experiment.mode
         shutter = experiment.shutter
-        shutter_suspender = experiment.suspend_shutter
+        # no suspender for main shutter
+#         shutter_suspender = experiment.suspend_shutter
         psofly = experiment.flycontrol
         cfg = experiment.config
         
@@ -535,11 +537,18 @@ class Tomography:
             me.file_path.put(fp)
 
         # Reset Aero rotation to ~0 if didn;t clean up after previous scan
-        if tomostage.rot.position > 300:    
+        if tomostage.rot.position > 180:    
             tomostage.rot.set_use_switch.put(1)
             tomostage.rot.dial_setpoint.put(tomostage.rot.dial_readback.get()-360)
             tomostage.rot.user_offset.put(0)
             tomostage.rot.set_use_switch.put(0) 
+         
+        # repare cam1
+        det.cam1.trigger_mode.put('Internal')
+        det.cam1.frame_rate_on_off.put(1)
+        det.cam1.acquire_time.put(cfg['tomo']['acquire_time'])
+        det.cam1.acquire_time.put(cfg['tomo']['acquire_time'])  # Need to set it twice to make sure this is put in.
+        det.cam1.acquire_period.put(cfg['tomo']['acquire_period'])  
         
         ################################
         ## step 3: Check light status ##
@@ -566,7 +575,8 @@ class Tomography:
             # open shutter for beam
             if mode.lower() in ['production']:
                 yield from bps.mv(shutter, 'open')
-                yield from bps.install_suspender(shutter_suspender)
+                # no suspender for main shutter
+#                 yield from bps.install_suspender(shutter_suspender)
             # config output
             if mode.lower() in ['dryrun','production']:
                 for me in [det.tiff1, det.hdf1]:
@@ -597,6 +607,8 @@ class Tomography:
                 raise ValueError(f"Unsupported output type {cfg['output']['type']}")
 
             # setting acquire_time and acquire_period
+            yield from bps.mv(det.cam1.trigger_mode, 'Internal')
+            yield from bps.mv(det.cam1.frame_rate_on_off, 1)
             yield from bps.mv(det.cam1.acquire_time, acquire_time)
             yield from bps.mv(det.cam1.acquire_period, acquire_period)    
                 
@@ -622,7 +634,8 @@ class Tomography:
             
             # TODO: no shutter available for Sim testing
             if mode.lower() in ['dryrun', 'production']:
-                yield from bps.remove_suspender(shutter_suspender)
+            # remove shutter suspender
+#                 yield from bps.remove_suspender(shutter_suspender)
                 yield from bps.mv(shutter, "close")
 
             yield from Tomography.collect_dark(experiment)
@@ -685,7 +698,7 @@ class Tomography:
         # we are assuming that the global psofly is available
         yield from bps.mv(
             psofly.start,               cfg_tomo['omega_start'],
-            psofly.end,                 cfg_tomo['omega_end'],
+            psofly.end,                 cfg_tomo['omega_end'] + cfg_tomo['omega_step'], # to get the last projection at 360
             psofly.slew_speed,          cfg_tomo['slew_speed'],
             psofly.scan_delta,          cfg_tomo['scan_delta'],
             psofly.detector_setup_time, cfg_tomo['detector_setup_time'],
@@ -709,7 +722,7 @@ class Tomography:
         yield from bps.mv(psofly.pso_state,  "1")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        1) , re-enable PSO singal
         # start the fly scan
         yield from bps.trigger(det, group='fly')
-        yield from bps.abs_set(psofly.fly, "Fly", group='fly')
+        yield from bps.abs_set(psofly.fly, "1", group='fly')  ## changed to "1" on 9/25/2020. Sometimes if this doesn't work, change to "Fly"
         yield from bps.wait(group='fly')
         # safe guard against accidental triggering
         yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
@@ -820,6 +833,8 @@ class FarField:
         det.proc1.nd_array_port.put("TRANS1")
         det.tiff1.nd_array_port.put("PROC1")
         det.hdf1.nd_array_port.put("PROC1")
+        # configure Trans1 to get the correct orientation
+        det.trans1.transformation_type.put(3)  # Rot270
         # ---- get camera ready to keep taking image
         det.cam1.acquire_time.put(0.1)
         det.cam1.image_mode.put('Continuous')
@@ -881,7 +896,7 @@ class FarField:
         #TODO:
         # Add the real readout time here
         # Varex readout is ~67ms
-        yield from bps.mv(det.cam1.acquire_time, cfg_ff['acquire_time'] + 0.067)
+        yield from bps.mv(det.cam1.acquire_time, cfg_ff['acquire_time'] + 0.065)
         yield from bps.mv(det.cam1.trigger_mode, "Internal")
         yield from bps.mv(det.cam1.image_mode, "Multiple")
         yield from bps.mv(det.cam1.num_images, cfg_ff['n_frames']*cfg_ff['n_dark'])
@@ -894,7 +909,8 @@ class FarField:
         ffstage = experiment.stage
         mode = experiment.mode
         shutter = experiment.shutter
-        shutter_suspender = experiment.suspend_shutter
+        # no suspender for main shutter
+#         shutter_suspender = experiment.suspend_shutter
         psofly = experiment.flycontrol
         cfg = experiment.config
         
@@ -919,7 +935,7 @@ class FarField:
 #             cfg['ff']['omega_end']+cfg['ff']['omega_step']/2,
 #             cfg['ff']['omega_step'],
 #         )
-        n_projections = round((cfg['ff']['omega_end']-cfg['ff']['omega_start'])/cfg['ff']['omega_step'])
+        n_projections = abs(round((cfg['ff']['omega_end']-cfg['ff']['omega_start'])/cfg['ff']['omega_step']))
         cfg['ff']['n_projections'] = n_projections
         cfg['ff']['total_images']  = n_projections + n_dark
         fp = cfg['output']['filepath']
@@ -997,11 +1013,12 @@ class FarField:
             me.file_path.put(fp)
 
         # Reset Aero rotation to ~0 if didn;t clean up after previous scan
-        if ffstage.rot.position > 300:    
-            ffstage.rot.set_use_switch.put(1)
-            ffstage.rot.dial_setpoint.put(ffstage.rot.dial_readback.get()-360)
-            ffstage.rot.user_offset.put(0)
-            ffstage.rot.set_use_switch.put(0) 
+        ## remove this for 360 to 0 rotation
+#         if ffstage.rot.position > 180:    
+#             ffstage.rot.set_use_switch.put(1)
+#             ffstage.rot.dial_setpoint.put(ffstage.rot.dial_readback.get()-360)
+#             ffstage.rot.user_offset.put(0)
+#             ffstage.rot.set_use_switch.put(0) 
         
         ################################
         ## step 3: Check light status ##
@@ -1025,7 +1042,8 @@ class FarField:
             # open shutter for beam
             if mode.lower() in ['production']:
                 yield from bps.mv(shutter, 'open')
-                yield from bps.install_suspender(shutter_suspender)
+                # no suspender for main shutter
+#                 yield from bps.install_suspender(shutter_suspender)
             # config output
             if mode.lower() in ['dryrun','production']:
                 for me in [det.tiff1, det.hdf1]:
@@ -1056,7 +1074,7 @@ class FarField:
                 raise ValueError(f"Unsupported output type {cfg['output']['type']}")
 
             # setting acquire_time and acquire_period
-            yield from bps.mv(det.cam1.acquire_time, acquire_time + 0.074) # need to add the Varex readout for the correct estimate
+            yield from bps.mv(det.cam1.acquire_time, acquire_time + 0.065) # need to add the Varex readout for the correct estimate
                 
             # collect projections
             yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
@@ -1069,11 +1087,12 @@ class FarField:
     
             # collect back dark field
             # comment out dark for testing
-#             yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
+            yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
             if mode.lower() in ['dryrun', 'production']:
-                yield from bps.remove_suspender(shutter_suspender)
+            # remove suspender for main shutter
+#                 yield from bps.remove_suspender(shutter_suspender)
                 yield from bps.mv(shutter, "close")
-#             yield from FarField.collect_dark(experiment)
+            yield from FarField.collect_dark(experiment)
             
         ###########################
         ## Far Field Volume Scan ##
@@ -1124,7 +1143,7 @@ class FarField:
         # we are assuming that the global psofly is available
         yield from bps.mv(
             psofly.start,               cfg_ff['omega_start'],
-            psofly.end,                 cfg_ff['omega_end']+cfg_ff['scan_delta'],  # add omega_delta in the end to trigger the last exposure 
+            psofly.end,                 (cfg_ff['omega_end']+cfg_ff['scan_delta']),  # add omega_delta in the end to trigger the last exposure 
             psofly.slew_speed,          cfg_ff['slew_speed'],
             psofly.scan_delta,          cfg_ff['scan_delta'],
             psofly.detector_setup_time, cfg_ff['detector_setup_time'],
@@ -1148,7 +1167,7 @@ class FarField:
         yield from bps.mv(psofly.pso_state,  "1")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        1) , re-enable PSO singal
         # start the fly scan
         yield from bps.trigger(det, group='fly')
-        yield from bps.abs_set(psofly.fly, "Fly", group='fly')
+        yield from bps.abs_set(psofly.fly, "1", group='fly')  ## 9/25/2020 changed this from "Fly" to "1", sometimes will need to use "Fly"
         yield from bps.wait(group='fly')
         # safe guard against accidental triggering
         yield from bps.mv(psofly.pso_state,  "0")  # caput(6idMZ1:SG:AND-1_IN1_Signal,        0), disable PSO singal prevent accidental trigger
