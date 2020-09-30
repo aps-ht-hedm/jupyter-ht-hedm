@@ -16,7 +16,7 @@ def tomo_pso_config(
         psofly,
         omega_start: float,
         omega_end: float,
-        n_images: int,    # need to update for tomo and FF
+        omega_step: float,    # need to update for tomo and FF
         exposure_time: float,
         speed_scale: float= 0.9,        # 0: slowest speed possible, 1: fastest speed possible, 0~1: linear interpolation
         camera_make: str='PointGrey',
@@ -30,7 +30,8 @@ def tomo_pso_config(
     """
     # calculate the scan_delta (in degrees)
     # -- the rising edge is the beginning of the image acquisition
-    scan_delta = abs(omega_start - omega_end)/n_images # in FF scan_delta = omega_step
+#     scan_delta = abs(omega_start - omega_end)/n_projections
+    scan_delta = abs(omega_step)
   
     if (psofly.scan_delta.low_limit - scan_delta)*(psofly.scan_delta.high_limit-scan_delta) > 0:
         raise ValueError("Scan Delta out of the permitted range")
@@ -54,7 +55,7 @@ def tomo_pso_config(
     _readout = {
         "PointGrey": 0.033,
         "GE": 0.150,
-        "Varex": 0.070,
+        "Varex": 0.065,
     }[camera_make]
     # calculate the acutal slew speed limit cap
     _slew_speed_max = scan_delta/(_readout+exposure_time) if scan_delta/(_readout+exposure_time) < psofly.slew_speed.high_limit else psofly.slew_speed.high_limit
@@ -73,7 +74,7 @@ def ff_pso_config(
         omega_end: float,
         omega_step: float,    # need to update for tomo and FF
         exposure_time: float,
-        speed_scale: float= 0.98,        # 0: slowest speed possible, 1: fastest speed possible, 0~1: linear interpolation
+        speed_scale: float= 1.0,        # 0: slowest speed possible, 1: fastest speed possible, 0~1: linear interpolation
         camera_make: str='Varex',
     ):
     """
@@ -87,7 +88,7 @@ def ff_pso_config(
     # -- the rising edge is the beginning of the image acquisition
     # scan_delta = abs(omega_start - omega_end)/n_images # in FF scan_delta = omega_step
     # in FF scan_delta is a set value equal to omega_step
-    scan_delta = omega_step
+    scan_delta = abs(omega_step)
   
     if (psofly.scan_delta.low_limit - scan_delta)*(psofly.scan_delta.high_limit-scan_delta) > 0:
         raise ValueError("Scan Delta out of the permitted range")
@@ -111,7 +112,7 @@ def ff_pso_config(
     _readout = {
         "PointGrey": 0.033,
         "GE": 0.150,
-        "Varex": 0.070,
+        "Varex": 0.065,
     }[camera_make]
     # calculate the acutal slew speed limit cap
     _slew_speed_max = scan_delta/(_readout+exposure_time) if scan_delta/(_readout+exposure_time) < psofly.slew_speed.high_limit else psofly.slew_speed.high_limit
