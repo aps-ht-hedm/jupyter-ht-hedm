@@ -21,7 +21,6 @@ class MainShutter6IDD(ShutterBase):
     There is some dealy (>2s) during the opening and closing of the main shutter, therefore
     frequent toggling of the main shutter is highly discouraged.
     """
-    from time import sleep
 
     open_signal  = Component(EpicsSignal, "AcO8")
     close_signal = Component(EpicsSignal, "AcO7")
@@ -31,18 +30,20 @@ class MainShutter6IDD(ShutterBase):
     @property
     def state(self):
         return self.state_signal.get()
-
+    
     def open(self, timeout=10):
         self.open_signal.put(1)  # send out open request
         if self.delay_time > 0:
-            sleep(self.delay_time)
+            import time
+            time.sleep(self.delay_time)
         if self.open_signal.get() == 1:
             self.open_signal.put(0)  # cancel the open request, shutter is open now
 
     def close(self, timeout=10):
         self.close_signal.put(1)  # send out the close request
         if self.delay_time > 0:
-            sleep(self.delay_time)
+            import time
+            time.sleep(self.delay_time)
         if self.close_signal.get() == 1:
             self.close_signal.put(0)  # cancle the close request, shutter is closed now
 

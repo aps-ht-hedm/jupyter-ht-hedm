@@ -85,20 +85,20 @@ class Experiment:
 
         # setup the RunEngine
         self.RE = bluesky.RunEngine({})
-#         try:
-#             # NOTE
-#             # The MongoDB configuration file should be
-#             #    $HOME/.config/databroker/mongodb_config.yml
-#             # Check the MongoDB container running state if RE cannot locate
-#             # the service (most likely a host name or port number error)
-#             self.db = databroker.Broker.named("mongodb_config")
-#             self.RE.subscribe(self.db.insert)
-#         except:
-#             print("MongoDB metadata recording stream is not configured properly")
-#             print("Please double check the MongoBD server and try a manual setup")
-#         finally:
-#             print("It is recommended to have only one RunEngine per experiment/notebook")
-#             print("You can expose the RunEngine to global scope via: RE=$ExperimentName.RE")
+        try:
+            # NOTE
+            # The MongoDB configuration file should be
+            #    $HOME/.config/databroker/mongodb_config.yml
+            # Check the MongoDB container running state if RE cannot locate
+            # the service (most likely a host name or port number error)
+            self.db = databroker.Broker.named("mongodb_config")
+            self.RE.subscribe(self.db.insert)
+        except:
+            print("MongoDB metadata recording stream is not configured properly")
+            print("Please double check the MongoBD server and try a manual setup")
+        finally:
+            print("It is recommended to have only one RunEngine per experiment/notebook")
+            print("You can expose the RunEngine to global scope via: RE=$ExperimentName.RE")
 
         # get all beamline level control
         self.shutter = Experiment.get_main_shutter(mode)
@@ -880,7 +880,8 @@ class FarField:
         yield from bps.mv(det.proc1.num_filter, cfg_ff['n_frames'])
         #TODO:
         # Add the real readout time here
-        # yield from bps.mv(det.cam1.acquire_time, cfg_ff['acquire_time'] + $$$$$$)
+        # Varex readout is ~67ms
+        yield from bps.mv(det.cam1.acquire_time, cfg_ff['acquire_time'] + 0.067)
         yield from bps.mv(det.cam1.trigger_mode, "Internal")
         yield from bps.mv(det.cam1.image_mode, "Multiple")
         yield from bps.mv(det.cam1.num_images, cfg_ff['n_frames']*cfg_ff['n_dark'])
@@ -911,12 +912,14 @@ class FarField:
 
         acquire_time   = cfg['ff']['acquire_time']
         n_dark         = cfg['ff']['n_dark']
-        angs = np.arange(
-            cfg['ff']['omega_start'], 
-            cfg['ff']['omega_end']+cfg['ff']['omega_step']/2,
-            cfg['ff']['omega_step'],
-        )
-        n_projections = len(angs)
+        
+        # Not needed for FF
+#         angs = np.arange(
+#             cfg['ff']['omega_start'], 
+#             cfg['ff']['omega_end']+cfg['ff']['omega_step']/2,
+#             cfg['ff']['omega_step'],
+#         )
+        n_projections = round((cfg['ff']['omega_end']-cfg['ff']['omega_start'])/cfg['ff']['omega_step'])
         cfg['ff']['n_projections'] = n_projections
         cfg['ff']['total_images']  = n_projections + n_dark
         fp = cfg['output']['filepath']
@@ -1029,7 +1032,7 @@ class FarField:
                     yield from bps.mv(me.file_name, fn)
                     # yield from bps.mv(me.file_path, fp)
                     yield from bps.mv(me.file_write_mode, 2)  # 1: capture, 2: stream
-                    yield from bps.mv(me.num_capture, cfg['ff']['total_images'])
+                    yield from bps.mv(me.num_capture, cfg['ff']['total_images'] + 1)
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))    
             elif mode.lower() in ['debug']:
                 for me in [det.tiff1, det.hdf1]:
@@ -1038,7 +1041,7 @@ class FarField:
                     yield from bps.mv(me.file_name, fn)
                     yield from bps.mv(me.file_write_mode, 2) # 1: capture, 2: stream
                     yield from bps.mv(me.auto_increment, 1)
-                    yield from bps.mv(me.num_capture, cfg['ff']['total_images'])
+                    yield from bps.mv(me.num_capture, cfg['ff']['total_images'] + 1)
                     yield from bps.mv(me.file_template, ".".join([r"%s%s_%06d",cfg['output']['type'].lower()]))
             
             if cfg['output']['type'] in ['tif', 'tiff']:
@@ -1053,7 +1056,7 @@ class FarField:
                 raise ValueError(f"Unsupported output type {cfg['output']['type']}")
 
             # setting acquire_time and acquire_period
-            yield from bps.mv(det.cam1.acquire_time, acquire_time)
+            yield from bps.mv(det.cam1.acquire_time, acquire_time + 0.074) # need to add the Varex readout for the correct estimate
                 
             # collect projections
             yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
@@ -1065,11 +1068,12 @@ class FarField:
                 raise ValueError(f"Unsupported scan type: {cfg['ff']['type']}")
     
             # collect back dark field
-            yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
+            # comment out dark for testing
+#             yield from bps.mv(det.cam1.frame_type, 3)  # for HDF5 dxchange data structure
             if mode.lower() in ['dryrun', 'production']:
                 yield from bps.remove_suspender(shutter_suspender)
                 yield from bps.mv(shutter, "close")
-            yield from FarField.collect_dark(experiment)
+#             yield from FarField.collect_dark(experiment)
             
         ###########################
         ## Far Field Volume Scan ##
@@ -1120,7 +1124,7 @@ class FarField:
         # we are assuming that the global psofly is available
         yield from bps.mv(
             psofly.start,               cfg_ff['omega_start'],
-            psofly.end,                 cfg_ff['omega_end'],
+            psofly.end,                 cfg_ff['omega_end']+cfg_ff['scan_delta'],  # add omega_delta in the end to trigger the last exposure 
             psofly.slew_speed,          cfg_ff['slew_speed'],
             psofly.scan_delta,          cfg_ff['scan_delta'],
             psofly.detector_setup_time, cfg_ff['detector_setup_time'],
@@ -1137,7 +1141,7 @@ class FarField:
         yield from bps.mv(psofly.taxi, "Taxi")     # should be equivalent to: caput(6idhedms1:PSOFly1:taxi, "Taxi")
                                                    # Aerotech cannot be in "stop" when use flyer
         yield from bps.mv(
-            det.cam1.num_images, cfg_ff['n_projections'],
+            det.cam1.num_images, cfg_ff['n_projections'] + 1, # there is an extra frame to save the last step, a junk frame exists in the beginning 
             det.cam1.trigger_mode, "External",
         )
         # ready to fly
