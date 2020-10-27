@@ -567,9 +567,7 @@ class Tomography:
         #########################
 
         # @bpp.finalize_decorator(Tomography.safe_guard(experiment))
-        @bpp.stage_decorator([det])
-        @bpp.run_decorator()
-        def scan_closure():
+        def scan_singleview():
             # TODO:
             # Somewhere we need to check the light status
             # open shutter for beam
@@ -639,7 +637,30 @@ class Tomography:
                 yield from bps.mv(shutter, "close")
 
             yield from Tomography.collect_dark(experiment)
-    
+                
+        ######################
+        ## Tomo Volume Scan ##
+        ######################
+
+        n_layers   = cfg['tomo']['volume']['n_layers']
+        ky_start   = cfg['tomo']['volume']['ky_start']
+        ky_step    = cfg['tomo']['volume']['ky_step']
+        if ky_step == 0:
+            # To repeat the current layer for n_layer times
+            # !!! The layer/file number will still increase for this same layer
+            _scan_positions = tuple(np.arange(n_layers))
+            # For regular scans
+        else:
+            _scan_positions = tuple(np.arange(ky_start, ky_start+(n_layers-0.5)*ky_step, ky_step))
+        
+        @bpp.stage_decorator([det])
+        @bpp.run_decorator()
+        def scan_closure():
+            for _current_scan_ky in _scan_positions:
+                _start = ky_start if ky_step == 0 else _current_scan_ky
+                yield from bps.mv(tomostage.ky, _start)
+                yield from scan_singleview()
+        
         return (yield from scan_closure())
 
     @staticmethod
@@ -1039,6 +1060,8 @@ class FarField:
         def scan_singlelayer():
             # TODO:
             # Somewhere we need to check the light status
+            # Get near the starting position before open the shutter
+            yield from bps.mv(ffstage.rot, cfg['ff']['omega_start'])
             # open shutter for beam
             if mode.lower() in ['production']:
                 yield from bps.mv(shutter, 'open')
@@ -1075,7 +1098,7 @@ class FarField:
 
             # setting acquire_time and acquire_period
             yield from bps.mv(det.cam1.acquire_time, acquire_time + 0.065) # need to add the Varex readout for the correct estimate
-                
+            
             # collect projections
             yield from bps.mv(det.cam1.frame_type, 1)  # for HDF5 dxchange data structure
             if cfg['ff']['type'].lower() == 'step':
@@ -1142,8 +1165,8 @@ class FarField:
 
         # we are assuming that the global psofly is available
         yield from bps.mv(
-            psofly.start,               cfg_ff['omega_start'],
-            psofly.end,                 (cfg_ff['omega_end']+cfg_ff['scan_delta']),  # add omega_delta in the end to trigger the last exposure 
+            psofly.start,               cfg_ff['omega_start'],         #  add omega_delta in the beginning to throw out the junk frame before actual scan
+            psofly.end,                 (cfg_ff['omega_end'] + cfg_ff['omega_step']),  
             psofly.slew_speed,          cfg_ff['slew_speed'],
             psofly.scan_delta,          cfg_ff['scan_delta'],
             psofly.detector_setup_time, cfg_ff['detector_setup_time'],
@@ -1156,7 +1179,7 @@ class FarField:
         yield from bps.mv(psofly.fi3_signal, "")  # clear other signal inputs from NF and FF
         yield from bps.mv(psofly.fi4_signal, "pls")
         # taxi
-        yield from bps.mv(ffstage.rot, cfg_ff['omega_start'])
+        yield from bps.mv(ffstage.rot, (cfg_ff['omega_start'] - cfg_ff['scan_delta']))
         yield from bps.mv(psofly.taxi, "Taxi")     # should be equivalent to: caput(6idhedms1:PSOFly1:taxi, "Taxi")
                                                    # Aerotech cannot be in "stop" when use flyer
         yield from bps.mv(
