@@ -127,11 +127,11 @@ class StageAero(MotorBundle):
 
     #   TODO:
     #   update with acutal PV
-    kx          = Component(EpicsMotor, "6idhedm:m42", name='kx_trans')  # x motion with kohzu stage
+    kx          = Component(EpicsMotor, "6idhedm:m41", name='kx_trans')  # x motion with kohzu stage
     ky          = Component(EpicsMotor, "6idhedm:m40", name='ky_trans')  # y motion with kohzu stage
-    kz          = Component(EpicsMotor, "6idhedm:m41", name='kz_trans')  # z motion with kohzu stage
-    kx_tilt     = Component(EpicsMotor, "6idhedm:m43", name='kx_tilt')   # kohzu tilt motion along x
-    kz_tilt     = Component(EpicsMotor, "6idhedm:m44", name='kz_tilt')   # kohzu tilt motion along z
+    kz          = Component(EpicsMotor, "6idhedm:m42", name='kz_trans')  # z motion with kohzu stage
+    kx_tilt     = Component(EpicsMotor, "6idhedm:m44", name='kx_tilt')   # kohzu tilt motion along x
+    kz_tilt     = Component(EpicsMotor, "6idhedm:m43", name='kz_tilt')   # kohzu tilt motion along z
 
     rot         = Component(AeroEpicsMotor, "6idhedms1:m1",  name='rot_y'  )    # rotation with aero stage
 
